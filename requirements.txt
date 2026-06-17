@@ -1,0 +1,5 @@
+streamlit
+requests
+python-dotenv
+twilio
+twilio-agent-connect[server]
