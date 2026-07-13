@@ -29,7 +29,7 @@ with st.sidebar:
 
     page = st.radio(
         "Navigation",
-        options=["Channels", "Conversations", "Flex SDK", "Actions"],
+        options=["Channels", "Conversations", "Flex SDK", "Actions", "CR Insights", "CI & Memory"],
         label_visibility="collapsed",
     )
 
@@ -49,6 +49,12 @@ with main_col:
     elif page == "Actions":
         from pages import actions
         actions.render()
+    elif page == "CR Insights":
+        from pages import cr_insights
+        cr_insights.render()
+    elif page == "CI & Memory":
+        from pages import ci_memory
+        ci_memory.render()
 
 with inspector_col:
     from pages.inspector import render_inspector

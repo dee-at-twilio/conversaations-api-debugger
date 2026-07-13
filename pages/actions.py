@@ -5,6 +5,7 @@ import re
 
 import streamlit as st
 from twilio.rest import Client
+from twilio.twiml.voice_response import VoiceResponse, Connect
 from tac import TAC, TACConfig
 from tac.channels.sms import SMSChannel, SMSChannelConfig
 from tac.channels.voice import VoiceChannel, VoiceChannelConfig
@@ -25,8 +26,8 @@ def render():
         st.warning("Enter your Twilio credentials in the sidebar to get started.")
         return
 
-    tab_send_sms, tab_tac_sms, tab_tac_voice = st.tabs(
-        ["Send SMS to customer", "TAC outbound SMS", "TAC outbound call"]
+    tab_send_sms, tab_tac_sms, tab_tac_voice, tab_amd_call = st.tabs(
+        ["Send SMS to customer", "TAC outbound SMS", "TAC outbound call", "Outbound call with AMD"]
     )
 
     with tab_send_sms:
@@ -170,12 +171,9 @@ def render():
 
     with tab_tac_voice:
         st.subheader("TAC outbound call")
-
-        public_domain = os.getenv("TWILIO_VOICE_PUBLIC_DOMAIN", "")
-
         tac_voice_to = st.text_input("To (customer number)", placeholder="+16505551234", key="tac_voice_to")
         tac_voice_domain = os.getenv("TWILIO_VOICE_PUBLIC_DOMAIN", "")
-        tac_voice_greeting = st.text_input("Welcome greeting (optional)", placeholder="Hi! This is an AI assistant calling from Acme Corp.", key="tac_voice_greeting")
+        tac_voice_greeting = st.text_input("Hello (optional)", placeholder="Hi! This is an AI assistant.", key="tac_voice_greeting")
 
         if st.button("Start call", type="primary", key="btn_tac_voice"):
             missing = [k for k, v in {"To": tac_voice_to, "Public domain": tac_voice_domain}.items() if not v]
@@ -190,13 +188,113 @@ def render():
                     opts = InitiateVoiceConversationOptions(
                         to=tac_voice_to,
                         websocket_url=f"wss://{tac_voice_domain}/ws",
+                        welcome_greeting=tac_voice_greeting,
                         action_url=f"https://{tac_voice_domain}/conversation-relay-callback",
-                    )
-                    if tac_voice_greeting:
-                        opts.welcome_greeting = tac_voice_greeting
+                    )                   
+                    
+                    # if tac_voice_greeting:
+                    #     opts.welcome_greeting = tac_voice_greeting
                     result = asyncio.run(voice_channel.initiate_outbound_conversation(opts))
-                    st.success("Outbound call initiated.")
+                    st.success(f"Outbound call initiated. ")
                     with st.expander("Result"):
                         st.json({"call_sid": result.call_sid} if hasattr(result, "call_sid") else str(result))
+                except Exception as e:
+                    st.error(f"Failed: {e}")
+
+    with tab_amd_call:
+        st.subheader("Outbound call with AMD")
+        st.caption("Places a call via the Voice SDK with Answering Machine Detection, connected to ConversationRelay.")
+
+        amd_to = st.text_input("To (customer number)", placeholder="+447876762080", key="amd_to")
+        amd_from = os.getenv("TWILIO_PHONE_NUMBER", "")
+        amd_domain = os.getenv("TWILIO_VOICE_PUBLIC_DOMAIN", "")
+        cintel_id = os.getenv("TWILIO_CINTEL_ID", "")
+        amd_greeting = st.text_input(
+            "Welcome greeting",
+            value="",
+            key="amd_greeting",
+        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            amd_voice = st.text_input("TTS voice", value="en-US-Neural2-F", key="amd_voice")
+            amd_language = st.text_input("TTS language", value="en-US", key="amd_language")
+        with col2:
+            amd_transcription_language = st.text_input(
+                "Transcription language", value="en-US", key="amd_transcription_language"
+            )
+            amd_conv_config = os.getenv("TWILIO_CONVERSATION_CONFIGURATION_ID", "")
+
+        amd_mode = st.selectbox(
+            "Machine detection mode",
+            options=["Enable", "DetectMessageEnd"],
+            index=0,
+            help="Enable: return result as soon as human/machine detected. DetectMessageEnd: wait for voicemail greeting to finish.",
+            key="amd_mode",
+        )
+        amd_async = st.checkbox(
+            "Async AMD (non-blocking)",
+            value=True,
+            help="If checked, the call connects while AMD analyzes in parallel and posts the result to a callback.",
+            key="amd_async",
+        )
+
+        if st.button("Start call", type="primary", key="btn_amd_call"):
+            missing = [
+                k
+                for k, v in {
+                    "To": amd_to,
+                    "From": amd_from,
+                    "Public domain": amd_domain,
+                }.items()
+                if not v
+            ]
+            if missing:
+                st.error(f"Required fields missing: {', '.join(missing)}")
+                st.stop()
+
+            websocket_url = f"wss://{amd_domain}/ws"
+            action_url = f"https://{amd_domain}/conversation-relay-callback"
+            amd_status_callback = f"https://{amd_domain}/amd-status"
+
+            response = VoiceResponse()
+            connect = Connect(action=action_url)
+            cr_kwargs = {
+                "url": websocket_url,
+                "welcome_greeting": "",
+                "welcomeGreetingInterruptible": True,
+                # "intelligenceService": cintel_id,
+                "voice": amd_voice,
+                "language": amd_language,
+                "transcription_language": amd_transcription_language,
+            }
+            if amd_conv_config:
+                cr_kwargs["conversation_configuration"] = amd_conv_config
+            connect.conversation_relay(**cr_kwargs)
+            response.append(connect)
+
+            call_kwargs = {
+                "to": amd_to,
+                "from_": amd_from,
+                "twiml": str(response),
+                # "machine_detection": amd_mode,
+                # "machine_detection_silence_timeout": 10000, 
+                # "machine_detection_timeout": 59,             
+                # "machine_detection_speech_end_threshold": 2500,
+                "record": "true",
+            }
+            # if amd_async:
+            #     call_kwargs["async_amd"] = "true"
+            #     call_kwargs["async_amd_status_callback"] = amd_status_callback
+            #     call_kwargs["async_amd_status_callback_method"] = "POST"
+
+            with st.spinner("Placing call..."):
+                try:
+                    call = _client().calls.create(**call_kwargs)
+                    st.success(f"Call initiated: {call.sid}")
+                    with st.expander("TwiML"):
+                        st.code(str(response), language="xml")
+                    with st.expander("Result"):
+                        st.json({"sid": call.sid, "status": call.status})
                 except Exception as e:
                     st.error(f"Failed: {e}")
