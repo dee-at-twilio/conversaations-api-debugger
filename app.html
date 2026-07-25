@@ -1,0 +1,1281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workshop Demo Generator</title>
+<style>
+  :root {
+    --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Code", "Roboto Mono", monospace;
+    --font-display: "Buffalo", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+    --font-body: ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+
+    --bg:#0a0e17; --panel:#0f1523; --card:#161c2b; --tile:#131a28; --raise:#1b2333;
+    --line:#232b3d; --line-2:#3e4757;
+    --ink:#edeef2; --ink-2:#c9ccd6; --ink-3:#8b93a5; --ink-4:#5c6579;
+    --red:#f22f46; --red-dim:rgba(242,47,70,.14);
+    --green:#38d178; --green-dim:rgba(56,209,120,.14);
+    --amber:#f5b544; --blue:#6b8cff;
+    --r-lg:14px; --r-md:10px; --r-sm:7px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font-body); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+
+  /* Top bar */
+  .topbar { display:flex; align-items:center; gap:20px; padding:14px 24px; border-bottom:1px solid var(--line); background:var(--panel); position:sticky; top:0; z-index:20; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .logo { width:34px; height:34px; border-radius:9px; background:var(--red); display:grid; place-items:center; box-shadow:0 0 0 1px rgba(255,255,255,.04) inset; }
+  .logo svg { width:20px; height:20px; }
+  .brand h1 { margin:0; font-size:17px; font-weight:700; letter-spacing:-.01em; }
+  .brand .sub { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-4); margin-top:1px; }
+  .tabs { display:flex; gap:4px; margin-left:8px; }
+  .tab { font-family:var(--font-mono); font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); padding:8px 14px; border-radius:8px; cursor:pointer; border:1px solid transparent; background:transparent; transition:background .15s,color .15s; }
+  .tab:hover { color:var(--ink-2); background:var(--card); }
+  .tab.active { color:var(--ink); background:var(--card); border-color:var(--line-2); }
+  .topbar .spacer { flex:1; }
+  .status-pill { display:flex; align-items:center; gap:8px; font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; color:var(--ink-2); padding:7px 12px; border-radius:999px; border:1px solid var(--line-2); background:var(--card); }
+  .dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 10px var(--green); }
+
+  /* Layout: form left, code panel fixed on the right half of the viewport */
+  .wrap { display:block; padding:20px 24px 60px; padding-right:calc(50vw + 24px); max-width:none; margin:0; }
+  .wrap > .col.form-side { display:flex; flex-direction:column; gap:18px; min-width:0; max-width:820px; margin:0 auto; }
+  .col.code-side {
+    position:fixed; top:65px; right:0; width:50vw; height:calc(100vh - 65px);
+    padding:20px 24px; overflow-y:auto; background:var(--bg); border-left:1px solid var(--line);
+    display:flex; flex-direction:column; gap:0; z-index:5;
+  }
+  .col { display:flex; flex-direction:column; gap:18px; min-width:0; }
+  @media (max-width:1120px){
+    .wrap { padding-right:24px; }
+    .col.code-side { position:static; width:auto; height:auto; border-left:0; padding:0; margin-top:20px; }
+  }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+  .card-hd { padding:16px 20px 12px; border-bottom:1px solid var(--line); }
+  .eyebrow { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--red); font-weight:600; }
+  .card-hd h2 { margin:6px 0 2px; font-size:20px; font-weight:700; letter-spacing:-.01em; }
+  .card-hd p { margin:0; font-size:12.5px; color:var(--ink-3); }
+  .card-bd { padding:18px 20px; }
+
+  .field { margin-bottom:18px; } .field:last-child { margin-bottom:0; }
+  label.lbl { display:block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3); margin-bottom:8px; }
+  .hint { font-size:11.5px; color:var(--ink-4); margin-top:6px; }
+
+  input[type=text], input[type=password], textarea, select {
+    width:100%; background:var(--panel); color:var(--ink); border:1px solid var(--line-2); border-radius:var(--r-sm);
+    padding:11px 12px; font-family:var(--font-body); font-size:13.5px; outline:none; transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus, textarea:focus, select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(107,140,255,.12); }
+  textarea { resize:vertical; min-height:92px; line-height:1.55; }
+  select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238b93a5' d='M6 8L2 4h8z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:30px; }
+
+  .llm-creds { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .llm-creds:empty { display:none; }
+  .llm-creds .full { grid-column:1 / -1; }
+  .llm-creds .mini-lbl { display:block; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); margin-bottom:5px; }
+  @media (max-width:560px){ .llm-creds { grid-template-columns:1fr; } }
+
+  .seg { display:inline-flex; background:var(--panel); border:1px solid var(--line-2); border-radius:var(--r-sm); padding:3px; gap:3px; }
+  .seg button { font-family:var(--font-mono); font-size:12px; letter-spacing:.04em; color:var(--ink-3); background:transparent; border:0; cursor:pointer; padding:8px 16px; border-radius:5px; transition:background .12s,color .12s; }
+  .seg button.on { background:var(--raise); color:var(--ink); box-shadow:0 1px 0 rgba(0,0,0,.3); }
+  .seg button:hover:not(.on) { color:var(--ink-2); }
+  .seg.sm button { padding:6px 12px; font-size:11px; }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:560px){ .grid-2 { grid-template-columns:1fr; } }
+
+  /* template rows */
+  .tpl-list { display:flex; flex-direction:column; gap:8px; max-height:260px; overflow-y:auto; padding-right:4px; }
+  .tpl-list::-webkit-scrollbar { width:8px; } .tpl-list::-webkit-scrollbar-thumb { background:var(--line-2); border-radius:8px; }
+  .tpl { text-align:left; width:100%; cursor:pointer; background:var(--tile); border:1px solid var(--line); border-radius:var(--r-md); padding:12px 14px; transition:border-color .15s,background .15s; display:flex; gap:12px; align-items:flex-start; }
+  .tpl:hover { border-color:var(--line-2); }
+  .tpl.on { border-color:var(--red); background:var(--red-dim); }
+  .tpl .radio { width:15px; height:15px; border-radius:50%; border:2px solid var(--ink-4); margin-top:2px; flex:none; position:relative; transition:border-color .15s; }
+  .tpl.on .radio { border-color:var(--red); }
+  .tpl.on .radio::after { content:""; position:absolute; inset:2px; border-radius:50%; background:var(--red); }
+  .tpl .t-title { font-size:13.5px; font-weight:600; color:var(--ink); }
+  .tpl .t-desc { font-size:12px; color:var(--ink-3); margin-top:3px; }
+  .tpl-add { font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; color:var(--ink-4); border:1px dashed var(--line-2); background:transparent; border-radius:var(--r-md); padding:10px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .tpl-add:hover { color:var(--ink-2); border-color:var(--ink-4); }
+
+  /* feature checks */
+  .check { display:flex; align-items:flex-start; gap:11px; cursor:pointer; padding:10px 12px; border-radius:var(--r-sm); transition:background .12s; }
+  .check:hover { background:var(--panel); }
+  .box { width:17px; height:17px; border-radius:5px; border:1.5px solid var(--line-2); flex:none; margin-top:1px; display:grid; place-items:center; transition:all .15s; }
+  .check.on .box, .module.inc .box { background:var(--red); border-color:var(--red); }
+  .box svg { width:11px; height:11px; opacity:0; transition:opacity .12s; }
+  .check.on .box svg, .module.inc .box svg { opacity:1; }
+  .check .c-title { font-size:13px; color:var(--ink); }
+  .check .c-desc { font-size:11.5px; color:var(--ink-4); margin-top:2px; }
+  .feat-grid { display:grid; grid-template-columns:1fr 1fr; gap:2px; }
+  @media (max-width:620px){ .feat-grid { grid-template-columns:1fr; } }
+
+  /* component list (left) — selectable rows that drive the code panel */
+  .module { border:1px solid var(--line); border-radius:var(--r-md); margin-bottom:9px; background:var(--tile); cursor:pointer; transition:border-color .15s,background .15s; }
+  .module:last-child { margin-bottom:0; }
+  .module:hover { border-color:var(--line-2); }
+  .module.focused { border-color:var(--blue); box-shadow:0 0 0 3px rgba(107,140,255,.12); }
+  .module-hd { display:flex; align-items:center; gap:12px; padding:12px 14px; }
+  .m-name { font-size:13.5px; font-weight:600; }
+  .m-tag { font-family:var(--font-mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); background:var(--panel); border:1px solid var(--line); padding:2px 7px; border-radius:999px; }
+  .m-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+  .m-badge { font-family:var(--font-mono); font-size:9px; letter-spacing:.08em; text-transform:uppercase; padding:2px 7px; border-radius:999px; border:1px solid var(--line-2); color:var(--ink-4); }
+  .m-badge.edited { color:var(--amber); border-color:rgba(245,181,68,.4); background:rgba(245,181,68,.1); }
+  .m-badge.unsaved { color:var(--blue); border-color:rgba(107,140,255,.4); background:rgba(107,140,255,.1); }
+  .m-note { font-size:11px; color:var(--ink-4); padding:0 14px 11px 41px; margin-top:-4px; }
+
+  /* generate bar */
+  .genbar { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  .toggle { display:flex; align-items:center; gap:9px; cursor:pointer; font-size:12.5px; color:var(--ink-2); }
+  .switch { width:38px; height:21px; border-radius:999px; background:var(--line-2); position:relative; transition:background .15s; flex:none; }
+  .switch::after { content:""; position:absolute; top:2px; left:2px; width:17px; height:17px; border-radius:50%; background:#fff; transition:transform .15s; }
+  .toggle.on .switch { background:var(--green); } .toggle.on .switch::after { transform:translateX(17px); }
+  .btn-gen { margin-left:auto; font-family:var(--font-mono); font-size:13px; letter-spacing:.04em; background:var(--red); color:#fff; border:0; border-radius:var(--r-sm); padding:13px 26px; cursor:pointer; font-weight:600; transition:filter .15s,transform .05s; }
+  .btn-gen:hover { filter:brightness(1.08); } .btn-gen:active { transform:translateY(1px); }
+
+  /* ---------- Code focus panel (right) ---------- */
+  .code-panel { position:static; align-self:stretch; display:flex; flex-direction:column; flex:1; min-height:0; }
+  .code-panel > .card-bd { flex:1; min-height:0; display:flex; flex-direction:column; }
+  .cp-hd { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
+  .cp-hd .cp-title { font-size:15px; font-weight:700; }
+  .cp-hd .cp-sub { font-size:11px; color:var(--ink-4); font-family:var(--font-mono); }
+  .cp-state { margin-left:auto; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; border-radius:999px; border:1px solid var(--line-2); color:var(--ink-4); }
+  .cp-state.edited { color:var(--amber); border-color:rgba(245,181,68,.4); background:rgba(245,181,68,.1); }
+
+  .cp-empty { padding:60px 24px; text-align:center; color:var(--ink-4); }
+  .cp-empty svg { opacity:.5; margin-bottom:12px; }
+
+  .code-block { border-radius:var(--r-sm); border:1px solid var(--line); overflow:hidden; }
+  .cb-bar { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); }
+  .cb-bar .cb-label { font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-3); }
+  .cb-bar .lang-badge { font-family:var(--font-mono); font-size:10px; font-weight:700; padding:2px 7px; border-radius:5px; background:var(--raise); color:var(--ink-2); border:1px solid var(--line-2); }
+  .cb-bar .lang-badge.mismatch { color:var(--red); border-color:var(--red); background:var(--red-dim); }
+  .cb-bar .spacer { flex:1; }
+  .btn-mini { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em; color:var(--ink-2); background:var(--tile); border:1px solid var(--line-2); border-radius:6px; padding:6px 11px; cursor:pointer; transition:all .12s; }
+  .btn-mini:hover:not(:disabled) { border-color:var(--ink-3); color:var(--ink); }
+  .btn-mini:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-mini.save { color:var(--green); border-color:rgba(56,209,120,.4); }
+  .btn-mini.save:hover:not(:disabled) { background:var(--green-dim); }
+  .btn-mini.use-ref { color:var(--blue); border-color:rgba(107,140,255,.4); }
+
+  /* editor (gutter + textarea) */
+  .editor { display:flex; align-items:stretch; background:#0b1120; height:320px; overflow:hidden; }
+  .gutter { flex:none; padding:12px 0; text-align:right; background:#0b1120; color:var(--ink-4); font-family:var(--font-mono); font-size:12px; line-height:1.65; user-select:none; overflow:hidden; border-right:1px solid var(--line); min-width:42px; }
+  .gutter .gl-inner { will-change:transform; }
+  .gutter .gl { padding:0 10px; }
+  .gutter .gl.err { color:var(--red); background:var(--red-dim); }
+  .code-ta { flex:1; padding:12px 14px; background:#0b1120; color:#dfe3ec; font-family:var(--font-mono); font-size:12px; line-height:1.65; border:0; outline:none; resize:none; white-space:pre; overflow:auto; tab-size:4; }
+  .code-ta.readonly { color:var(--ink-3); opacity:.85; cursor:default; }
+
+  /* editable block accent — subtle green edge so it reads as "live" vs the muted reference */
+  .code-block.editable { border-color:rgba(56,209,120,.35); display:flex; flex-direction:column; flex:10 1 0; min-height:260px; overflow:hidden; }
+  .code-block.editable .cb-bar { background:linear-gradient(180deg, rgba(56,209,120,.06), var(--panel)); flex:none; }
+  .code-block.editable .cb-bar .cb-label { color:var(--green); }
+  .code-block.editable .editor { flex:1 1 0; min-height:0; height:auto; }
+  .code-block.editable .parse-bar { flex:none; }
+
+  /* reference block sizes to ~30% of the editable block via 3:10 flex ratio */
+  #ref-region { display:flex; flex-direction:column; flex:5 1 0; min-height:0; }
+  .code-block.ref { display:flex; flex-direction:column; flex:1 1 0; min-height:0; overflow:hidden; }
+  .code-block.ref .cb-bar { flex:none; }
+  .code-block.ref .editor { flex:1 1 0; min-height:0; height:auto; }
+
+  /* syntax highlight overlay — content-sized, translated on scroll */
+  .hl-wrap { position:relative; flex:1 1 0; min-width:0; height:100%; background:#0b1120; overflow:hidden; }
+  .hl {
+    position:absolute; top:0; left:0; margin:0; padding:12px 14px;
+    font-family:var(--font-mono); font-size:12px; line-height:1.65;
+    color:#dfe3ec; white-space:pre; tab-size:4;
+    letter-spacing:0; word-spacing:0;
+    pointer-events:none; will-change:transform;
+  }
+  .hl-wrap .code-ta {
+    position:absolute; inset:0; margin:0; padding:12px 14px;
+    background:transparent; color:transparent; caret-color:#dfe3ec;
+    font-family:var(--font-mono); font-size:12px; line-height:1.65;
+    letter-spacing:0; word-spacing:0;
+    border:0; outline:none; resize:none;
+    overflow:auto; tab-size:4;
+    white-space:pre; word-wrap:normal; overflow-wrap:normal;
+  }
+  .hl-wrap .code-ta::selection { background:rgba(107,140,255,.35); color:transparent; }
+
+  /* VS Code Dark+ inspired token palette */
+  .tk-kw  { color:#c586c0; }
+  .tk-str { color:#ce9178; }
+  .tk-cmt { color:#6a9955; font-style:italic; }
+  .tk-num { color:#b5cea8; }
+  .tk-fn  { color:#dcdcaa; }
+  .tk-ty  { color:#4ec9b0; }
+  .tk-dec { color:#dcdcaa; }
+  .tk-op  { color:#c9ccd6; }
+
+  /* read-only reference block — visibly muted vs. the editable one */
+  .code-block.ref { border-color:var(--line); background:#0a0f1a; opacity:.92; }
+  .code-block.ref .cb-bar { background:#0a0f1a; }
+  .code-block.ref .cb-bar .cb-label { color:var(--ink-4); }
+  .code-block.ref .cb-bar .ro-pill {
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-4); border:1px solid var(--line-2); border-radius:999px; padding:2px 8px;
+  }
+  .code-block.ref .editor { background:#0a0f1a; }
+  .code-block.ref .gutter { background:#0a0f1a; color:var(--ink-4); opacity:.7; }
+  .code-block.ref .code-ta { background:#0a0f1a; color:var(--ink-3); }
+
+  /* copy button */
+  .btn-copy {
+    display:inline-flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:.04em;
+    color:var(--ink-2); background:var(--tile); border:1px solid var(--line-2); border-radius:6px;
+    padding:5px 10px; cursor:pointer; transition:all .12s;
+  }
+  .btn-copy:hover { border-color:var(--ink-3); color:var(--ink); }
+  .btn-copy.copied { color:var(--green); border-color:rgba(56,209,120,.4); background:var(--green-dim); }
+  .btn-copy svg { width:12px; height:12px; }
+  .editor.err { box-shadow:inset 0 0 0 1px rgba(242,47,70,.4); }
+
+  .parse-bar { display:flex; align-items:center; gap:8px; padding:7px 12px; font-family:var(--font-mono); font-size:11px; background:var(--panel); border-top:1px solid var(--line); }
+  .parse-bar.ok { color:var(--green); } .parse-bar.bad { color:var(--red); }
+  .parse-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+
+  .cp-actions { display:flex; gap:8px; padding:12px 0 2px; }
+  .ref-toggle { display:flex; align-items:center; gap:8px; margin:14px 0 8px; }
+  .ref-toggle .ref-title { font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-4); }
+  .illus { font-size:10.5px; color:var(--ink-4); margin-top:10px; font-style:italic; }
+
+  /* ---------- modals ---------- */
+  .overlay { position:fixed; inset:0; background:rgba(4,7,13,.72); backdrop-filter:blur(2px); display:none; align-items:flex-start; justify-content:center; padding:60px 20px; z-index:50; overflow-y:auto; }
+  .overlay.show { display:flex; }
+  .modal { width:100%; max-width:640px; background:var(--card); border:1px solid var(--line-2); border-radius:var(--r-lg); overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,.5); }
+  .modal-hd { padding:18px 22px; border-bottom:1px solid var(--line); }
+  .modal-hd h3 { margin:0; font-size:18px; font-weight:700; }
+  .modal-hd .m-sub { font-size:12.5px; color:var(--ink-3); margin-top:4px; }
+  .modal-hd.bad h3 { color:var(--red); }
+  .modal-bd { padding:20px 22px; }
+  .modal-ft { padding:14px 22px; border-top:1px solid var(--line); display:flex; gap:10px; justify-content:flex-end; }
+  .btn { font-family:var(--font-mono); font-size:12.5px; letter-spacing:.03em; padding:10px 18px; border-radius:var(--r-sm); cursor:pointer; border:1px solid var(--line-2); background:var(--panel); color:var(--ink-2); transition:all .12s; }
+  .btn:hover { border-color:var(--ink-3); color:var(--ink); }
+  .btn.primary { background:var(--red); color:#fff; border-color:var(--red); }
+  .btn.primary:hover { filter:brightness(1.08); }
+
+  .issue-group { margin-bottom:16px; } .issue-group:last-child { margin-bottom:0; }
+  .issue-group .ig-name { font-size:13px; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .issue-group .ig-name .warn-ic { color:var(--red); }
+  .issue { display:flex; align-items:center; gap:12px; padding:10px 12px; background:var(--tile); border:1px solid var(--line); border-radius:var(--r-sm); margin-bottom:6px; }
+  .issue .i-line { font-family:var(--font-mono); font-size:11px; color:var(--red); background:var(--red-dim); border:1px solid rgba(242,47,70,.3); border-radius:5px; padding:2px 8px; flex:none; }
+  .issue .i-msg { font-family:var(--font-mono); font-size:12px; color:var(--ink-2); flex:1; }
+  .issue .goto { font-family:var(--font-mono); font-size:10.5px; color:var(--blue); background:transparent; border:1px solid rgba(107,140,255,.4); border-radius:5px; padding:6px 11px; cursor:pointer; flex:none; }
+  .issue .goto:hover { background:rgba(107,140,255,.1); }
+
+  /* result modal bits */
+  .kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:18px; }
+  .kpi { background:var(--tile); border:1px solid var(--line); border-radius:var(--r-md); padding:12px; }
+  .kpi .k-lbl { font-family:var(--font-mono); font-size:9px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-4); }
+  .kpi .k-val { font-family:var(--font-display); font-size:26px; font-weight:700; margin-top:5px; line-height:1; }
+  .kpi .k-val.sm { font-size:15px; }
+  .res-sec { font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--red); margin:18px 0 8px; }
+  .manifest table { width:100%; border-collapse:collapse; font-family:var(--font-mono); font-size:11.5px; }
+  .manifest td { padding:7px 4px; border-bottom:1px solid var(--line); }
+  .manifest tr:last-child td { border-bottom:0; }
+  .manifest td.k { color:var(--ink-3); } .manifest td.v { color:var(--ink); text-align:right; }
+  .tree { font-family:var(--font-mono); font-size:11.5px; line-height:1.7; color:var(--ink-2); white-space:pre; overflow-x:auto; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm); padding:12px 14px; }
+  .tree .dir { color:var(--blue); } .tree .new { color:var(--green); } .tree .cmt { color:var(--ink-4); }
+  .run { font-family:var(--font-mono); font-size:11.5px; background:var(--panel); border:1px solid var(--line); border-radius:var(--r-sm); padding:11px 12px; color:var(--green); overflow-x:auto; white-space:pre; margin-top:8px; }
+
+  /* Projects */
+  #projects { display:none; padding:20px 24px 60px; max-width:1200px; margin:0 auto; }
+  .proj-hd { display:flex; align-items:center; margin-bottom:16px; }
+  .proj-hd h2 { font-size:22px; margin:0; font-weight:700; }
+  .proj-hd .count { font-family:var(--font-mono); font-size:11px; color:var(--ink-4); margin-left:12px; letter-spacing:.05em; }
+  .proj { background:var(--card); border:1px solid var(--line); border-radius:var(--r-md); padding:16px 18px; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; margin-bottom:10px; }
+  .proj .p-name { font-size:15px; font-weight:600; }
+  .proj .p-meta { font-family:var(--font-mono); font-size:11px; color:var(--ink-4); margin-top:4px; letter-spacing:.03em; }
+  .proj .p-chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:9px; }
+  .p-chip { font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; color:var(--ink-2); background:var(--panel); border:1px solid var(--line-2); border-radius:999px; padding:3px 9px; }
+  .p-actions { display:flex; gap:6px; }
+  .p-btn { font-family:var(--font-mono); font-size:11px; color:var(--ink-2); background:var(--panel); border:1px solid var(--line-2); border-radius:6px; padding:7px 11px; cursor:pointer; transition:all .12s; }
+  .p-btn:hover { border-color:var(--ink-3); color:var(--ink); }
+  .p-btn.primary { color:var(--red); border-color:rgba(242,47,70,.4); }
+  .p-btn.primary:hover { background:var(--red-dim); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="7" cy="7" r="2.4"/><circle cx="17" cy="7" r="2.4"/><circle cx="7" cy="17" r="2.4"/><circle cx="17" cy="17" r="2.4"/></svg></div>
+    <div><h1>Workshop Demo Generator</h1><div class="sub">GTMI · SAA · internal</div></div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="create">Create</button>
+    <button class="tab" data-tab="projects">Projects</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="status-pill"><span class="dot"></span> MCP connected · mcp.twilio.com/docs</div>
+</div>
+
+<!-- ============ CREATE ============ -->
+<div class="wrap" id="create">
+  <!-- LEFT: form -->
+  <div class="col form-side">
+
+    <div class="card">
+      <div class="card-hd"><div class="eyebrow">Step 01 · Configure</div><h2>Project &amp; stack</h2><p>Define all requirements. Language and access set what the editable code is written in.</p></div>
+      <div class="card-bd">
+        <div class="field">
+          <label class="lbl">Project name</label>
+          <input type="text" id="pname" value="acme-voice-support" oninput="sync()">
+          <div class="hint">Slugified for the output folder and the SQLite registry.</div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label class="lbl">Language</label>
+            <div class="seg" id="seg-lang"><button class="on" data-v="Python">Python</button><button data-v="TypeScript">TypeScript</button></div>
+          </div>
+          <div class="field">
+            <label class="lbl">Twilio access</label>
+            <div class="seg" id="seg-access"><button class="on" data-v="Helper SDK">Helper SDK</button><button data-v="REST API">REST API</button></div>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Agent LLM (configurable per project)</label>
+          <select id="llm" onchange="renderLlmCreds(); sync()">
+            <option>Anthropic — Claude</option><option>OpenAI — GPT</option><option>Google — Gemini</option><option>Azure OpenAI</option><option>AWS Bedrock</option>
+          </select>
+          <div id="llm-creds" class="llm-creds"></div>
+          <div class="hint">Credentials are written to <span style="font-family:var(--font-mono);">.env.example</span> — never committed.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="eyebrow">Step 02 · Use case</div><h2>Pick a scenario</h2><p>Choose a starter, add instructions, then toggle the behaviours to include.</p></div>
+      <div class="card-bd">
+        <div class="field">
+          <label class="lbl">Use-case template · templates/usecases/*.md</label>
+          <div class="tpl-list" id="tpl-list">
+            <button class="tpl" data-v="Multi-channel service + CINTEL"><span class="radio"></span><span><span class="t-title">Customer Service Voice Agent · Multi-channel (Voice + SMS)</span><span class="t-desc">Real-time sentiment &amp; intelligence monitor using Conversation Intelligence.</span></span></button>
+            <button class="tpl" data-v="Outbound lead generator"><span class="radio"></span><span><span class="t-title">Outbound lead generator</span><span class="t-desc">Places outbound calls, detects sentiment, ends with a summary saved to the DB.</span></span></button>
+            <button class="tpl on" data-v="Blank"><span class="radio"></span><span><span class="t-title">Blank scenario</span><span class="t-desc">Start from an empty brief and drive it entirely from custom instructions.</span></span></button>
+            <button class="tpl-add" onclick="alert('Mock: drop a new .md into templates/usecases/ to add a starter.')">+ Add template (drop a file into templates/usecases/)</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="lbl">Instructions</label>
+          <textarea rows="7" id="instr" placeholder="Inject specific prompt or system behaviour into the generated demo — persona, tone, guardrails, sample data…" oninput="sync()"></textarea>
+        </div>
+        <div class="field">
+          <label class="lbl">Features · templates/features/*.md</label>
+          <div class="feat-grid" id="feat-grid"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-hd"><div class="eyebrow">Step 03 · Twilio components</div><h2>Wire the products</h2><p>Tick to include. Click a row to view and edit its integration code on the right.</p></div>
+      <div class="card-bd" id="modules"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-bd">
+        <div class="genbar">
+          <div class="toggle" id="tg-scaffold" onclick="toggleFlag(this)"><span class="switch"></span> Scaffold only · skip LLM fill</div>
+          <div class="toggle" id="tg-provision" onclick="toggleFlag(this)"><span class="switch"></span> Provision Twilio resources <span style="color:var(--red);font-family:var(--font-mono);font-size:10px;">live account</span></div>
+          <button class="btn-gen" onclick="generate()">Generate demo →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: code focus panel (fixed to viewport) -->
+  <div class="col code-side">
+    <div class="card code-panel" id="code-panel"><!-- injected --></div>
+  </div>
+</div>
+
+<!-- ============ PROJECTS ============ -->
+<div id="projects">
+  <div class="proj-hd"><h2>Projects</h2><span class="count">3 generated · newest first</span></div>
+  <div class="proj"><div><div class="p-name">acme-voice-support</div><div class="p-meta">2026-07-25 18:44 · python · sdk</div><div class="p-chips"><span class="p-chip">ConversationRelay</span><span class="p-chip">Conversation Intelligence</span><span class="p-chip">Channels: Voice+SMS</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
+  <div class="proj"><div><div class="p-name">northwind-outbound-leads</div><div class="p-meta">2026-07-24 11:02 · typescript · rest</div><div class="p-chips"><span class="p-chip">ConversationRelay</span><span class="p-chip">Conversation Memory</span><span class="p-chip">Agent Connect: OpenAI</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
+  <div class="proj"><div><div class="p-name">globex-returning-caller</div><div class="p-meta">2026-07-22 09:30 · python · sdk</div><div class="p-chips"><span class="p-chip">Conversation Orchestrator</span><span class="p-chip">Conversation Memory</span><span class="p-chip">Channels: Voice+WhatsApp</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
+</div>
+
+<!-- generic modal -->
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<!-- ===== representative snippets (illustrative — real generation happens in the build) ===== -->
+<script type="text/plain" id="snip-channels-py-sdk">
+from fastapi import FastAPI, Request, Response
+from twilio.twiml.voice_response import VoiceResponse
+from .config import settings
+
+app = FastAPI()
+
+@app.post("/voice/inbound")
+async def inbound_voice(request: Request):
+    """Entry point for inbound Voice. Add SMS / WhatsApp routes as needed."""
+    twiml = VoiceResponse()
+    twiml.say("Thanks for calling. Connecting you now.")
+    return Response(str(twiml), media_type="application/xml")
+</script>
+<script type="text/plain" id="snip-channels-ts-sdk">
+import express, { Request, Response } from "express";
+import twilio from "twilio";
+
+export const app = express();
+
+// Entry point for inbound Voice. Add SMS / WhatsApp routes as needed.
+app.post("/voice/inbound", (req: Request, res: Response) => {
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.say("Thanks for calling. Connecting you now.");
+  res.type("text/xml").send(twiml.toString());
+});
+</script>
+<script type="text/plain" id="snip-channels-py-rest">
+import httpx
+from .config import settings
+
+# Outbound call via REST. SDK equivalent: client.calls.create(...)
+async def place_call(to: str, from_: str, twiml_url: str) -> str:
+    base = f"https://api.twilio.com/2010-04-01/Accounts/{settings.account_sid}"
+    auth = (settings.account_sid, settings.auth_token)
+    async with httpx.AsyncClient(auth=auth) as http:
+        resp = await http.post(f"{base}/Calls.json", data={
+            "To": to, "From": from_, "Url": twiml_url,
+        })
+    resp.raise_for_status()
+    return resp.json()["sid"]
+</script>
+<script type="text/plain" id="snip-channels-ts-rest">
+import { settings } from "./config";
+
+// Outbound call via REST. SDK equivalent: client.calls.create(...)
+export async function placeCall(to: string, from: string, twimlUrl: string) {
+  const base = "https://api.twilio.com/2010-04-01/Accounts/" + settings.accountSid;
+  const auth = Buffer.from(settings.accountSid + ":" + settings.authToken).toString("base64");
+  const resp = await fetch(base + "/Calls.json", {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ To: to, From: from, Url: twimlUrl }),
+  });
+  if (!resp.ok) throw new Error("Twilio " + resp.status);
+  return (await resp.json()).sid;
+}
+</script>
+
+<script type="text/plain" id="snip-relay-py-sdk">
+from twilio.twiml.voice_response import VoiceResponse, Connect
+from .config import settings
+
+def relay_twiml() -> str:
+    """Route the call into ConversationRelay over a WebSocket bridge."""
+    response = VoiceResponse()
+    connect = Connect(action=f"https://{settings.domain}/relay/callback")
+    connect.conversation_relay(
+        url=f"wss://{settings.domain}/ws",
+        welcome_greeting="Hi, thanks for calling. How can I help?",
+        tts_provider="ElevenLabs",
+        transcription_provider="Deepgram",
+        interruptible="any",
+    )
+    response.append(connect)
+    return str(response)
+</script>
+<script type="text/plain" id="snip-relay-ts-sdk">
+import twilio from "twilio";
+import { settings } from "./config";
+
+// Route the call into ConversationRelay over a WebSocket bridge.
+export function relayTwiml(): string {
+  const response = new twilio.twiml.VoiceResponse();
+  const connect = response.connect({ action: "https://" + settings.domain + "/relay/callback" });
+  connect.conversationRelay({
+    url: "wss://" + settings.domain + "/ws",
+    welcomeGreeting: "Hi, thanks for calling. How can I help?",
+    ttsProvider: "ElevenLabs",
+    transcriptionProvider: "Deepgram",
+    interruptible: "any",
+  });
+  return response.toString();
+}
+</script>
+<script type="text/plain" id="snip-relay-py-rest">
+from .config import settings
+
+# ConversationRelay is TwiML returned from your webhook.
+# Without the helper library, return the XML directly.
+def relay_twiml() -> str:
+    d = settings.domain
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<Response><Connect action=\"https://" + d + "/relay/callback\">"
+        "<ConversationRelay url=\"wss://" + d + "/ws\" "
+        'welcomeGreeting="Hi, thanks for calling. How can I help?" '
+        'ttsProvider="ElevenLabs" transcriptionProvider="Deepgram" '
+        'interruptible="any" />'
+        "</Connect></Response>"
+    )
+</script>
+<script type="text/plain" id="snip-relay-ts-rest">
+import { settings } from "./config";
+
+// ConversationRelay is TwiML returned from your webhook.
+// Without the helper library, return the XML directly.
+export function relayTwiml(): string {
+  const d = settings.domain;
+  return (
+    '<?xml version="1.0" encoding="UTF-8"?>' +
+    '<Response><Connect action="https://' + d + '/relay/callback">' +
+    '<ConversationRelay url="wss://' + d + '/ws" ' +
+    'welcomeGreeting="Hi, thanks for calling. How can I help?" ' +
+    'ttsProvider="ElevenLabs" transcriptionProvider="Deepgram" ' +
+    'interruptible="any" /></Connect></Response>'
+  );
+}
+</script>
+
+<script type="text/plain" id="snip-cintel-py-sdk">
+from twilio.rest import Client
+from .config import settings
+
+client = Client(settings.account_sid, settings.auth_token)
+
+def analyze_call(call_sid: str) -> str:
+    """Attach a transcript so Conversation Intelligence runs its operators."""
+    transcript = client.intelligence.v2.transcripts.create(
+        service_sid=settings.intelligence_service_sid,
+        channel={"media_properties": {"source_sid": call_sid}},
+    )
+    return transcript.sid
+
+def on_operator_results(payload: dict):
+    """Webhook: receive Operator Results (sentiment, summary, ...)."""
+    sentiment = payload.get("sentiment")
+    summary = payload.get("summary")
+    # persist to DB / react
+</script>
+<script type="text/plain" id="snip-cintel-ts-sdk">
+import twilio from "twilio";
+import { settings } from "./config";
+
+const client = twilio(settings.accountSid, settings.authToken);
+
+// Attach a transcript so Conversation Intelligence runs its operators.
+export async function analyzeCall(callSid: string): Promise<string> {
+  const transcript = await client.intelligence.v2.transcripts.create({
+    serviceSid: settings.intelligenceServiceSid,
+    channel: { media_properties: { source_sid: callSid } },
+  });
+  return transcript.sid;
+}
+
+// Webhook: receive Operator Results (sentiment, summary, ...).
+export function onOperatorResults(payload: any) {
+  const { sentiment, summary } = payload;
+  // persist to DB / react
+}
+</script>
+<script type="text/plain" id="snip-cintel-py-rest">
+import httpx
+from .config import settings
+
+# Create a transcript via REST so Conversation Intelligence runs operators.
+async def analyze_call(call_sid: str) -> str:
+    url = "https://intelligence.twilio.com/v2/Transcripts"
+    auth = (settings.account_sid, settings.auth_token)
+    async with httpx.AsyncClient(auth=auth) as http:
+        resp = await http.post(url, data={
+            "ServiceSid": settings.intelligence_service_sid,
+            "Channel": '{"media_properties":{"source_sid":"' + call_sid + '"}}',
+        })
+    resp.raise_for_status()
+    return resp.json()["sid"]
+</script>
+<script type="text/plain" id="snip-cintel-ts-rest">
+import { settings } from "./config";
+
+// Create a transcript via REST so Conversation Intelligence runs operators.
+export async function analyzeCall(callSid: string): Promise<string> {
+  const auth = Buffer.from(settings.accountSid + ":" + settings.authToken).toString("base64");
+  const resp = await fetch("https://intelligence.twilio.com/v2/Transcripts", {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      ServiceSid: settings.intelligenceServiceSid,
+      Channel: JSON.stringify({ media_properties: { source_sid: callSid } }),
+    }),
+  });
+  return (await resp.json()).sid;
+}
+</script>
+
+<script type="text/plain" id="snip-memory-py-sdk">
+from twilio_memory import MemoryClient   # Conversation Memory SDK
+from .config import settings
+
+memory = MemoryClient.from_env()
+
+def context_for(caller_number: str) -> str:
+    """Resolve the caller and pull relevant memories before the agent replies."""
+    profile = memory.resolve_identity(phone=caller_number)
+    memories = memory.recall(profile_id=profile.id, limit=5)
+    return "\n".join(m.summary for m in memories)
+
+def remember(profile_id: str, transcript: str):
+    """After the interaction, write new observations back to the profile."""
+    memory.observe(profile_id=profile_id, transcript=transcript)
+</script>
+<script type="text/plain" id="snip-memory-ts-sdk">
+import { MemoryClient } from "twilio-memory"; // Conversation Memory SDK
+import { settings } from "./config";
+
+const memory = MemoryClient.fromEnv();
+
+// Resolve the caller and pull relevant memories before the agent replies.
+export async function contextFor(callerNumber: string): Promise<string> {
+  const profile = await memory.resolveIdentity({ phone: callerNumber });
+  const memories = await memory.recall({ profileId: profile.id, limit: 5 });
+  return memories.map((m) => m.summary).join("\n");
+}
+
+// After the interaction, write new observations back to the profile.
+export async function remember(profileId: string, transcript: string) {
+  await memory.observe({ profileId, transcript });
+}
+</script>
+<script type="text/plain" id="snip-memory-py-rest">
+import httpx
+from .config import settings
+
+# Conversation Memory is SDK-first; representative REST calls shown.
+async def context_for(caller_number: str) -> str:
+    base = "https://conversations.twilio.com/v1/Memory"
+    auth = (settings.account_sid, settings.auth_token)
+    async with httpx.AsyncClient(auth=auth) as http:
+        prof = await http.post(base + "/ResolveIdentity", data={"Phone": caller_number})
+        pid = prof.json()["profile_id"]
+        rec = await http.get(base + "/Profiles/" + pid + "/Memories", params={"Limit": 5})
+    return "\n".join(m["summary"] for m in rec.json()["memories"])
+</script>
+<script type="text/plain" id="snip-memory-ts-rest">
+import { settings } from "./config";
+
+// Conversation Memory is SDK-first; representative REST calls shown.
+export async function contextFor(callerNumber: string): Promise<string> {
+  const base = "https://conversations.twilio.com/v1/Memory";
+  const auth = Buffer.from(settings.accountSid + ":" + settings.authToken).toString("base64");
+  const h = { Authorization: "Basic " + auth };
+  const prof = await (await fetch(base + "/ResolveIdentity", { method: "POST", headers: h, body: new URLSearchParams({ Phone: callerNumber }) })).json();
+  const rec = await (await fetch(base + "/Profiles/" + prof.profile_id + "/Memories?Limit=5", { headers: h })).json();
+  return rec.memories.map((m: any) => m.summary).join("\n");
+}
+</script>
+
+<script type="text/plain" id="snip-orch-py-sdk">
+from twilio_orchestrator import Orchestrator, SessionConfig
+from .config import settings
+
+orchestrator = Orchestrator.from_env()
+
+def get_or_start_session(customer_key: str) -> str:
+    """Unify Voice + SMS into one continuous conversation for a customer."""
+    session = orchestrator.sessions.get_or_create(
+        identity=customer_key,
+        config=SessionConfig(channels=["voice", "sms"]),
+    )
+    return session.id
+</script>
+<script type="text/plain" id="snip-orch-ts-sdk">
+import { Orchestrator, SessionConfig } from "twilio-orchestrator";
+import { settings } from "./config";
+
+const orchestrator = Orchestrator.fromEnv();
+
+// Unify Voice + SMS into one continuous conversation for a customer.
+export async function getOrStartSession(customerKey: string): Promise<string> {
+  const session = await orchestrator.sessions.getOrCreate({
+    identity: customerKey,
+    config: { channels: ["voice", "sms"] } as SessionConfig,
+  });
+  return session.id;
+}
+</script>
+<script type="text/plain" id="snip-orch-py-rest">
+import httpx
+from .config import settings
+
+# Conversation Orchestrator is SDK-first; representative REST call shown.
+async def get_or_start_session(customer_key: str) -> str:
+    url = "https://conversations.twilio.com/v1/Orchestrator/Sessions"
+    auth = (settings.account_sid, settings.auth_token)
+    async with httpx.AsyncClient(auth=auth) as http:
+        resp = await http.post(url, data={
+            "Identity": customer_key, "Channels": "voice,sms",
+        })
+    resp.raise_for_status()
+    return resp.json()["id"]
+</script>
+<script type="text/plain" id="snip-orch-ts-rest">
+import { settings } from "./config";
+
+// Conversation Orchestrator is SDK-first; representative REST call shown.
+export async function getOrStartSession(customerKey: string): Promise<string> {
+  const auth = Buffer.from(settings.accountSid + ":" + settings.authToken).toString("base64");
+  const resp = await fetch("https://conversations.twilio.com/v1/Orchestrator/Sessions", {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ Identity: customerKey, Channels: "voice,sms" }),
+  });
+  return (await resp.json()).id;
+}
+</script>
+
+<script type="text/plain" id="snip-tac-py-sdk">
+import asyncio
+from twilio_agent_connect import (
+    TAC, TACConfig, VoiceChannel, VoiceChannelConfig,
+    InitiateVoiceConversationOptions,
+)
+from .config import settings
+
+tac = TAC(config=TACConfig.from_env())
+voice_channel = VoiceChannel(tac, config=VoiceChannelConfig(memory_mode="always"))
+
+def start_outbound(to: str):
+    opts = InitiateVoiceConversationOptions(
+        to=to,
+        websocket_url=f"wss://{settings.domain}/ws",
+        welcome_greeting="Hi, this is Acme calling about your enquiry.",
+        action_url=f"https://{settings.domain}/conversation-relay-callback",
+    )
+    return asyncio.run(voice_channel.initiate_outbound_conversation(opts))
+</script>
+<script type="text/plain" id="snip-tac-ts-sdk">
+import {
+  TAC, TACConfig, VoiceChannel, VoiceChannelConfig,
+  InitiateVoiceConversationOptions,
+} from "twilio-agent-connect";
+import { settings } from "./config";
+
+const tac = new TAC({ config: TACConfig.fromEnv() });
+const voiceChannel = new VoiceChannel(tac, new VoiceChannelConfig({ memoryMode: "always" }));
+
+export async function startOutbound(to: string) {
+  const opts: InitiateVoiceConversationOptions = {
+    to,
+    websocketUrl: "wss://" + settings.domain + "/ws",
+    welcomeGreeting: "Hi, this is Acme calling about your enquiry.",
+    actionUrl: "https://" + settings.domain + "/conversation-relay-callback",
+  };
+  return voiceChannel.initiateOutboundConversation(opts);
+}
+</script>
+<script type="text/plain" id="snip-tac-py-rest">
+import httpx
+from .config import settings
+
+# Twilio Agent Connect is SDK-first; representative REST call shown.
+async def start_outbound(to: str) -> str:
+    url = "https://agentconnect.twilio.com/v1/Voice/Conversations"
+    auth = (settings.account_sid, settings.auth_token)
+    async with httpx.AsyncClient(auth=auth) as http:
+        resp = await http.post(url, data={
+            "To": to,
+            "WebsocketUrl": f"wss://{settings.domain}/ws",
+            "MemoryMode": "always",
+        })
+    resp.raise_for_status()
+    return resp.json()["conversation_sid"]
+</script>
+<script type="text/plain" id="snip-tac-ts-rest">
+import { settings } from "./config";
+
+// Twilio Agent Connect is SDK-first; representative REST call shown.
+export async function startOutbound(to: string): Promise<string> {
+  const auth = Buffer.from(settings.accountSid + ":" + settings.authToken).toString("base64");
+  const resp = await fetch("https://agentconnect.twilio.com/v1/Voice/Conversations", {
+    method: "POST",
+    headers: { Authorization: "Basic " + auth, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      To: to, WebsocketUrl: "wss://" + settings.domain + "/ws", MemoryMode: "always",
+    }),
+  });
+  return (await resp.json()).conversation_sid;
+}
+</script>
+
+<script>
+  const CHECK = '<svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.2l2.2 2.3 4.8-5" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  // ---- tiny single-pass syntax highlighter (Python + TypeScript) ----
+  const HL_PY = [
+    [/#[^\n]*/y, 'cmt'],
+    [/"""[\s\S]*?"""/y, 'str'],
+    [/'''[\s\S]*?'''/y, 'str'],
+    [/[fFrRbB]{0,2}"(?:\\.|[^"\\\n])*"/y, 'str'],
+    [/[fFrRbB]{0,2}'(?:\\.|[^'\\\n])*'/y, 'str'],
+    [/@\w+/y, 'dec'],
+    [/\b(?:def|class|from|import|as|return|if|elif|else|for|while|try|except|finally|with|async|await|in|not|is|and|or|pass|raise|yield|lambda|global|nonlocal|break|continue|True|False|None|self|cls|match|case)\b/y, 'kw'],
+    [/\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b/y, 'num'],
+    [/\b[a-zA-Z_]\w*(?=\s*\()/y, 'fn'],
+    [/[a-zA-Z_]\w*/y, null],
+    [/\s+/y, null],
+    [/./y, null],
+  ];
+  const HL_TS = [
+    [/\/\/[^\n]*/y, 'cmt'],
+    [/\/\*[\s\S]*?\*\//y, 'cmt'],
+    [/`(?:\\.|[^`\\])*`/y, 'str'],
+    [/"(?:\\.|[^"\\\n])*"/y, 'str'],
+    [/'(?:\\.|[^'\\\n])*'/y, 'str'],
+    [/\b(?:const|let|var|function|return|if|else|for|while|do|switch|case|default|class|interface|type|enum|import|export|from|as|async|await|new|this|super|extends|implements|public|private|protected|readonly|static|null|undefined|true|false|throw|try|catch|finally|in|of|typeof|instanceof|break|continue|yield|declare|namespace|module|is|keyof|infer|abstract|satisfies)\b/y, 'kw'],
+    [/\b(?:string|number|boolean|any|unknown|never|void|object|symbol|bigint|Array|Promise|Record|Partial|Required|Readonly|Pick|Omit|Map|Set|Date|RegExp|Response|Request|Buffer|Error)\b/y, 'ty'],
+    [/\b\d+(?:\.\d+)?(?:e[+-]?\d+)?\b/y, 'num'],
+    [/\b[a-zA-Z_$][\w$]*(?=\s*\()/y, 'fn'],
+    [/[a-zA-Z_$][\w$]*/y, null],
+    [/\s+/y, null],
+    [/./y, null],
+  ];
+  function highlight(src, lang){
+    const rules = lang === 'py' ? HL_PY : HL_TS;
+    const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    let out = '', i = 0;
+    while (i < src.length){
+      let matched = false;
+      for (const [re, cls] of rules){
+        re.lastIndex = i;
+        const m = re.exec(src);
+        if (m && m.index === i && m[0].length){
+          out += cls ? `<span class="tk-${cls}">${esc(m[0])}</span>` : esc(m[0]);
+          i += m[0].length;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched){ out += esc(src[i]); i++; }
+    }
+    return out;
+  }
+
+  const FEATURES = [
+    ["Voice agent for customer service","inbound · ConversationRelay"],
+    ["Outbound appointment reminder & reschedule","outbound voice flow"],
+    ["SMS / WhatsApp support with human escalation","messaging + handoff"],
+    ["Post-call quality & sentiment analysis","batch pipeline"],
+    ["Returning-caller recall of prior interactions","memory-backed"],
+    ["Lead qualification with handoff to sales","qualify + route"],
+  ];
+
+  const COMPONENTS = [
+    { id:"channels", name:"Channels (base)", tag:"required", note:"" },
+    { id:"relay",    name:"ConversationRelay", tag:"voice AI", note:"" },
+    { id:"cintel",   name:"Conversation Intelligence", tag:"CINTEL", note:"Works best alongside Conversation Orchestrator — recommended, not required." },
+    { id:"memory",   name:"Conversation Memory", tag:"context", note:"Works best alongside Conversation Orchestrator — recommended, not required." },
+    { id:"orch",     name:"Conversation Orchestrator", tag:"routing", note:"" },
+    { id:"tac",      name:"Twilio Agent Connect", tag:"BYO LLM", note:"" },
+  ];
+
+  // ---- keys ----
+  const langKey = () => step1.lang === "Python" ? "py" : "ts";
+  const accessKey = () => step1.access === "Helper SDK" ? "sdk" : "rest";
+  const step1 = { lang:"Python", access:"Helper SDK" };
+
+  function snippet(id, lk, ak){
+    const el = document.getElementById(`snip-${id}-${lk}-${ak}`);
+    return el ? el.textContent.replace(/^\n/, "").replace(/\s+$/, "") : `// no representative snippet for ${id}`;
+  }
+
+  // ---- per-component state ----
+  const state = {};
+  COMPONENTS.forEach((c,i)=>{
+    const def = snippet(c.id, langKey(), accessKey());
+    state[c.id] = { included: i < 4, saved: def, draft: def, mismatch:false };
+  });
+  let focused = "relay";
+
+  // reference viewer state
+  const ref = { shown:false, lang:"Python", access:"Helper SDK" };
+  const refLangKey = () => ref.lang === "Python" ? "py" : "ts";
+  const refAccessKey = () => ref.access === "Helper SDK" ? "sdk" : "rest";
+
+  // ---- lightweight Rung-1 parse: bracket / quote balance ----
+  function parseCheck(code){
+    const lines = code.split("\n");
+    const stack = []; const pairs = { ")":"(", "]":"[", "}":"{" };
+    let inStr = null;
+    for(let li=0; li<lines.length; li++){
+      const line = lines[li];
+      for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(inStr){ if(ch==="\\"){ i++; continue; } if(ch===inStr) inStr=null; continue; }
+        if(ch==="#") break;
+        if(ch==="/" && line[i+1]==="/") break;
+        if(ch==="'"||ch==='"'||ch==="`"){ inStr=ch; continue; }
+        if(ch==="("||ch==="["||ch==="{"){ stack.push({ch,line:li+1}); }
+        else if(ch===")"||ch==="]"||ch==="}"){
+          if(!stack.length) return { ok:false, line:li+1, msg:`unexpected '${ch}'` };
+          const top = stack.pop();
+          if(top.ch!==pairs[ch]) return { ok:false, line:li+1, msg:`'${ch}' does not match '${top.ch}'` };
+        }
+      }
+      if(inStr && inStr!=="`") inStr=null; // strings rarely span lines in these snippets
+    }
+    if(stack.length){ const t=stack[stack.length-1]; return { ok:false, line:t.line, msg:`unclosed '${t.ch}'` }; }
+    return { ok:true };
+  }
+
+  // ---- features ----
+  const fg = document.getElementById("feat-grid");
+  FEATURES.forEach((f,i)=>{
+    const el = document.createElement("div");
+    el.className = "check" + (i<1?" on":"");
+    el.innerHTML = `<span class='box'>${CHECK}</span><span><span class='c-title'>${f[0]}</span><span class='c-desc'>${f[1]}</span></span>`;
+    el.onclick = ()=>{ el.classList.toggle("on"); };
+    fg.appendChild(el);
+  });
+
+  // ---- component list ----
+  function renderModules(){
+    const wrap = document.getElementById("modules");
+    wrap.innerHTML = "";
+    COMPONENTS.forEach(c=>{
+      const st = state[c.id];
+      const def = snippet(c.id, langKey(), accessKey());
+      const edited = st.saved !== def;
+      const unsaved = st.draft !== st.saved;
+      const m = document.createElement("div");
+      m.className = "module" + (st.included?" inc":"") + (focused===c.id?" focused":"");
+      let badges = "";
+      if(unsaved) badges += `<span class='m-badge unsaved'>unsaved</span>`;
+      else if(edited) badges += `<span class='m-badge edited'>edited</span>`;
+      else badges += `<span class='m-badge'>default</span>`;
+      m.innerHTML = `
+        <div class='module-hd'>
+          <span class='box' title='include'>${CHECK}</span>
+          <span class='m-name'>${c.name}</span>
+          <span class='m-tag'>${c.tag}</span>
+          <span class='m-right'>${badges}</span>
+        </div>
+        ${c.note ? `<div class='m-note'>${c.note}</div>`:""}`;
+      // checkbox toggles include; rest of row focuses
+      m.querySelector(".box").onclick = (e)=>{ e.stopPropagation(); st.included=!st.included; renderModules(); };
+      m.onclick = ()=>{ focused = c.id; renderModules(); renderPanel(); };
+      wrap.appendChild(m);
+    });
+  }
+
+  // ---- code focus panel ----
+  function renderPanel(){
+    const panel = document.getElementById("code-panel");
+    if(!focused){ panel.innerHTML = `<div class='cp-empty'>Select a component to view and edit its code.</div>`; return; }
+    const c = COMPONENTS.find(x=>x.id===focused);
+    const st = state[focused];
+    const def = snippet(c.id, langKey(), accessKey());
+    const edited = st.saved !== def;
+    const badgeLabel = (step1.lang==="Python"?"PY":"TS");
+    panel.innerHTML = `
+      <div class='cp-hd'>
+        <div>
+          <div class='cp-title'>${c.name}</div>
+          <div class='cp-sub'>${c.id}.${step1.lang==="Python"?"py":"ts"} · ${step1.access==="Helper SDK"?"sdk":"rest"}</div>
+        </div>
+        <div class='cp-state ${edited?"edited":""}'>${edited?"edited":"default"}</div>
+      </div>
+      <div class='card-bd'>
+      
+        <div id='ref-region'></div>
+
+        <div class='code-block editable' style='margin-top:10px;'>
+          <div class='cb-bar'>
+            <span class='cb-label'>Editable</span>
+            <span class='lang-badge ${st.mismatch?"mismatch":""}' title='${st.mismatch?"Language mismatch — this is not "+step1.lang:"matches Step-01 language"}'>${badgeLabel}${st.mismatch?" ⚠":""}</span>
+            <span class='spacer'></span>
+          </div>
+          <div class='editor' id='editor'>
+            <div class='gutter' id='gutter'></div>
+            <div class='hl-wrap'>
+              <pre class='hl' id='hl-layer' aria-hidden='true'></pre>
+              <textarea class='code-ta' id='code-ta' spellcheck='false' wrap='off'>${escapeHtml(st.draft)}</textarea>
+            </div>
+          </div>
+          <div class='parse-bar' id='parse-bar'></div>
+        </div>
+
+        <div class='cp-actions'>
+          <button class='btn-mini save' id='btn-save'>Save</button>
+          <button class='btn-mini' id='btn-revert'>Revert</button>
+        </div>
+      </div>`;
+
+    // reference is always visible
+    ref.shown = true;
+    renderRef();
+
+    // editor
+    const ta = document.getElementById("code-ta");
+    const hl = document.getElementById("hl-layer");
+    ta.value = st.draft;
+    const paintHl = ()=>{ hl.innerHTML = highlight(ta.value, langKey()) + '\n'; };
+    const syncScroll = ()=>{
+      hl.style.transform = `translate(${-ta.scrollLeft}px, ${-ta.scrollTop}px)`;
+      const inner = document.querySelector('#gutter .gl-inner');
+      if(inner) inner.style.transform = `translateY(${-ta.scrollTop}px)`;
+    };
+    paintHl();
+    ta.addEventListener("input", ()=>{ st.draft = ta.value; paintHl(); refreshEditor(); syncBadges(); syncScroll(); });
+    ta.addEventListener("scroll", syncScroll);
+
+    document.getElementById("btn-save").onclick = ()=>{
+      const p = parseCheck(st.draft); if(!p.ok) return;
+      st.saved = st.draft; st.mismatch=false; renderModules(); renderPanel();
+    };
+    document.getElementById("btn-revert").onclick = ()=>{
+      st.draft = st.saved; st.mismatch=false; renderModules(); renderPanel();
+    };
+
+    refreshEditor();
+  }
+
+  function renderRef(){
+    const region = document.getElementById("ref-region");
+    const code = snippet(focused, refLangKey(), refAccessKey());
+    const copyIcon = `<svg viewBox='0 0 16 16' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'><rect x='5' y='5' width='9' height='9' rx='1.5'/><path d='M11 5V3.5A1.5 1.5 0 0 0 9.5 2h-5A1.5 1.5 0 0 0 3 3.5v5A1.5 1.5 0 0 0 4.5 10H6'/></svg>`;
+    region.innerHTML = `
+      <div class='code-block ref'>
+        <div class='cb-bar'>
+          <span class='cb-label'>Reference</span>
+          <span class='ro-pill'>read-only</span>
+          <span class='spacer'></span>
+          <div class='seg sm' id='ref-lang'><button class='${ref.lang==="Python"?"on":""}' data-v='Python'>Python</button><button class='${ref.lang==="TypeScript"?"on":""}' data-v='TypeScript'>TypeScript</button></div>
+          <div class='seg sm' id='ref-access'><button class='${ref.access==="Helper SDK"?"on":""}' data-v='Helper SDK'>SDK</button><button class='${ref.access==="REST API"?"on":""}' data-v='REST API'>REST</button></div>
+          <button class='btn-copy' id='ref-copy' title='Copy reference code'>${copyIcon}<span class='btn-copy-label'>Copy</span></button>
+        </div>
+        <div class='editor'>
+          <div class='gutter'>${code.split("\n").map((_,i)=>`<div class='gl'>${i+1}</div>`).join("")}</div>
+          <textarea class='code-ta readonly' readonly spellcheck='false'>${escapeHtml(code)}</textarea>
+        </div>
+      </div>`;
+    region.querySelectorAll("#ref-lang button").forEach(b=>b.onclick=()=>{ ref.lang=b.dataset.v; renderRef(); });
+    region.querySelectorAll("#ref-access button").forEach(b=>b.onclick=()=>{ ref.access=b.dataset.v; renderRef(); });
+    const copyBtn = document.getElementById("ref-copy");
+    copyBtn.onclick = async ()=>{
+      try { await navigator.clipboard.writeText(code); }
+      catch { const ta=document.createElement('textarea'); ta.value=code; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+      copyBtn.classList.add('copied');
+      copyBtn.querySelector('.btn-copy-label').textContent = 'Copied';
+      setTimeout(()=>{ copyBtn.classList.remove('copied'); const lbl=copyBtn.querySelector('.btn-copy-label'); if(lbl) lbl.textContent='Copy'; }, 1400);
+    };
+  }
+
+  function useReference(){
+    const st = state[focused];
+    const code = snippet(focused, refLangKey(), refAccessKey());
+    const mismatch = ref.lang !== step1.lang;
+    const doCopy = ()=>{ st.draft = code; st.mismatch = mismatch; renderModules(); renderPanel(); };
+    if(mismatch){
+      openModal(`
+        <div class='modal-hd bad'><h3>Language mismatch</h3><div class='m-sub'>This app builds in <b>${step1.lang}</b>, but the reference you're viewing is <b>${ref.lang}</b>.</div></div>
+        <div class='modal-bd'><p style='margin:0;color:var(--ink-2);font-size:13px;'>Copying it down will put ${ref.lang} code into a file that generates a ${step1.lang} app. The version will be flagged until you fix it or change Step-01 language.</p></div>
+        <div class='modal-ft'><button class='btn' onclick='closeModal()'>Cancel</button><button class='btn primary' id='mm-ok'>Copy it down anyway</button></div>`);
+      document.getElementById("mm-ok").onclick = ()=>{ closeModal(); doCopy(); };
+    } else { doCopy(); }
+  }
+
+  function refreshEditor(){
+    const st = state[focused];
+    const ta = document.getElementById("code-ta");
+    const gutter = document.getElementById("gutter");
+    const editor = document.getElementById("editor");
+    const bar = document.getElementById("parse-bar");
+    const p = parseCheck(st.draft);
+    const lines = st.draft.split("\n");
+    gutter.innerHTML = `<div class='gl-inner'>${lines.map((_,i)=>`<div class='gl ${(!p.ok && p.line===i+1)?"err":""}'>${i+1}</div>`).join("")}</div>`;
+    const inner = gutter.querySelector('.gl-inner');
+    if(inner) inner.style.transform = `translateY(${-ta.scrollTop}px)`;
+    if(p.ok){ editor.classList.remove("err"); bar.className="parse-bar ok"; bar.innerHTML = `<span class='parse-dot'></span> Syntax OK · parses as ${step1.lang}`; }
+    else { editor.classList.add("err"); bar.className="parse-bar bad"; bar.innerHTML = `<span class='parse-dot'></span> Line ${p.line}: ${p.msg}`; }
+    // save gating
+    const btnSave = document.getElementById("btn-save");
+    const btnRevert = document.getElementById("btn-revert");
+    const unsaved = st.draft !== st.saved;
+    btnSave.disabled = !p.ok || !unsaved;
+    btnSave.title = !p.ok ? "Fix the syntax error to save" : (!unsaved ? "No changes to save" : "Save — becomes what generates");
+    btnRevert.disabled = !unsaved;
+  }
+
+  function syncBadges(){ renderModulesBadgesOnly(); }
+  function renderModulesBadgesOnly(){ renderModules(); } // simple: re-render list to refresh badges
+
+  function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  // ---- segmented controls (Step 01) ----
+  function wireSeg(id, key){
+    const seg = document.getElementById(id);
+    seg.querySelectorAll("button").forEach(b=>{
+      b.onclick = ()=>{
+        if(step1[key]===b.dataset.v) return;
+        const prev = step1[key];
+        // any edits present?
+        const editedComps = COMPONENTS.filter(c=>{
+          const def = snippet(c.id, langKey(), accessKey());
+          return state[c.id].saved !== def || state[c.id].draft !== state[c.id].saved;
+        });
+        const commit = ()=>{
+          seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+          b.classList.add("on"); step1[key]=b.dataset.v;
+          // reset all working copies to new defaults
+          COMPONENTS.forEach(c=>{ const def = snippet(c.id, langKey(), accessKey()); state[c.id].saved=def; state[c.id].draft=def; state[c.id].mismatch=false; });
+          renderModules(); renderPanel();
+        };
+        if(editedComps.length){
+          openModal(`
+            <div class='modal-hd'><h3>Reset edited components?</h3><div class='m-sub'>The app is single-language. Switching ${key==="lang"?"language":"access"} to <b>${b.dataset.v}</b> resets your edits to the new defaults.</div></div>
+            <div class='modal-bd'><p style='margin:0 0 8px;color:var(--ink-3);font-size:12.5px;'>These components will be reset:</p>
+              <div>${editedComps.map(c=>`<span class='p-chip' style='margin:0 4px 4px 0;display:inline-block;'>${c.name}</span>`).join("")}</div></div>
+            <div class='modal-ft'><button class='btn' onclick='closeModal()'>Keep ${prev}</button><button class='btn primary' id='rs-ok'>Switch &amp; reset</button></div>`);
+          document.getElementById("rs-ok").onclick = ()=>{ closeModal(); commit(); };
+        } else { commit(); }
+      };
+    });
+  }
+  wireSeg("seg-lang","lang"); wireSeg("seg-access","access");
+
+  // ---- template rows (populate instructions) ----
+  const TPL_INSTRUCTIONS = {
+    "Multi-channel service + CINTEL":`You are a customer service voice agent for [COMPANY]. Handle inbound Voice and SMS in one continuous conversation. Escalate on sustained negative sentiment. Friendly, concise, never robotic. Never quote binding prices or SLAs — hand off to a human for anything binding.`,
+    "Outbound lead generator":`You are an outbound SDR calling prospects. Qualify against BANT and book a follow-up if warm. Warm, respectful of time. Honour do-not-call immediately. End every call with a written summary saved to the DB. Never fabricate references or ROI figures.`,
+    "Blank":``,
+  };
+  document.querySelectorAll("#tpl-list .tpl").forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll("#tpl-list .tpl").forEach(x=>x.classList.remove("on"));
+      t.classList.add("on");
+      const instr = document.getElementById("instr");
+      const starter = TPL_INSTRUCTIONS[t.dataset.v] ?? "";
+      const isStarter = Object.values(TPL_INSTRUCTIONS).includes(instr.value.trim());
+      if(!instr.value.trim() || isStarter) instr.value = starter;
+    };
+  });
+
+  function toggleFlag(el){ el.classList.toggle("on"); }
+
+  // ---- tabs ----
+  document.querySelectorAll(".tab").forEach(t=>{
+    t.onclick = ()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active");
+      const isCreate = t.dataset.tab==="create";
+      document.getElementById("create").style.display = isCreate ? "grid" : "none";
+      document.getElementById("projects").style.display = isCreate ? "none" : "block";
+    };
+  });
+
+  // ---- modal helpers ----
+  function openModal(html){ document.getElementById("modal").innerHTML = html; document.getElementById("overlay").classList.add("show"); }
+  function closeModal(){ document.getElementById("overlay").classList.remove("show"); }
+  document.getElementById("overlay").addEventListener("click", e=>{ if(e.target.id==="overlay") closeModal(); });
+
+  // ---- generate: shallow gate on included components' current drafts ----
+  function generate(){
+    const included = COMPONENTS.filter(c=>state[c.id].included);
+    const issues = [];
+    included.forEach(c=>{
+      const p = parseCheck(state[c.id].draft);
+      if(!p.ok) issues.push({ id:c.id, name:c.name, line:p.line, msg:p.msg });
+    });
+    if(issues.length){ showBlockPopup(issues); return; }
+    showResult(included);
+  }
+
+  function showBlockPopup(issues){
+    const groups = {};
+    issues.forEach(i=>{ (groups[i.id] ??= { name:i.name, items:[] }).items.push(i); });
+    const body = Object.entries(groups).map(([id,g])=>`
+      <div class='issue-group'>
+        <div class='ig-name'><span class='warn-ic'>⚠</span> ${g.name}</div>
+        ${g.items.map(it=>`<div class='issue'><span class='i-line'>line ${it.line}</span><span class='i-msg'>${it.msg}</span><button class='goto' data-id='${id}' data-line='${it.line}'>Go to it →</button></div>`).join("")}
+      </div>`).join("");
+    openModal(`
+      <div class='modal-hd bad'><h3>Can't generate — ${issues.length} issue${issues.length>1?"s":""} to fix</h3><div class='m-sub'>Nothing was written. Fix these and generate again.</div></div>
+      <div class='modal-bd'>${body}</div>
+      <div class='modal-ft'><button class='btn' onclick='closeModal()'>Close</button></div>`);
+    document.querySelectorAll(".goto").forEach(b=>{
+      b.onclick = ()=>{
+        focused = b.dataset.id; closeModal(); renderModules(); renderPanel();
+        const ta = document.getElementById("code-ta"); if(ta){ ta.focus();
+          const pos = ta.value.split("\n").slice(0, +b.dataset.line-1).join("\n").length;
+          ta.setSelectionRange(pos, pos); }
+        document.getElementById("code-panel").scrollIntoView({behavior:"smooth", block:"start"});
+      };
+    });
+  }
+
+  function showResult(included){
+    const slug = (document.getElementById("pname").value||"demo").replace(/[^a-z0-9-]/gi,"-").toLowerCase();
+    const ext = step1.lang==="Python"?"py":"ts";
+    const feats = document.querySelectorAll("#feat-grid .check.on").length;
+    const files = 8 + included.length;
+    const routes = included.map(c=>`      <span class='new'>${c.id}.${ext}</span>${" ".repeat(Math.max(1,14-c.id.length))}<span class='cmt'># ${c.name}</span>`).join("\n") || "      <span class='cmt'># no components selected</span>";
+    const rows = [
+      ["project", slug], ["language", step1.lang.toLowerCase()],
+      ["access", step1.access==="Helper SDK"?"sdk":"rest"],
+      ["agent_llm", document.getElementById("llm").value.split("—")[0].trim().toLowerCase()],
+      ["components", included.length+" wired"], ["features", feats+" selected"],
+      ["llm_fill", document.getElementById("tg-scaffold").classList.contains("on")?"skipped":"enabled"],
+      ["provision", document.getElementById("tg-provision").classList.contains("on")?"on (live)":"off"],
+    ];
+    openModal(`
+      <div class='modal-hd'><h3>Demo generated · ${slug}</h3><div class='m-sub'>Saved code written verbatim — what you edited is what's on disk.</div></div>
+      <div class='modal-bd'>
+        <div class='kpi-grid'>
+          <div class='kpi'><div class='k-lbl'>Components</div><div class='k-val'>${included.length}</div></div>
+          <div class='kpi'><div class='k-lbl'>Features</div><div class='k-val'>${feats}</div></div>
+          <div class='kpi'><div class='k-lbl'>Files</div><div class='k-val'>${files}</div></div>
+          <div class='kpi'><div class='k-lbl'>Stack</div><div class='k-val sm'>${step1.lang==="Python"?"PY":"TS"} · ${step1.access==="Helper SDK"?"SDK":"REST"}</div></div>
+        </div>
+        <div class='res-sec'>Manifest</div>
+        <div class='manifest'><table>${rows.map(r=>`<tr><td class='k'>${r[0]}</td><td class='v'>${r[1]}</td></tr>`).join("")}</table></div>
+        <div class='res-sec'>Generated tree</div>
+        <div class='tree'><span class='dir'>generated/${slug}/</span>
+  README.md          <span class='cmt'># setup + demo script</span>
+  CLAUDE.md          <span class='cmt'># agent brief + MCP rules</span>
+  PROMPT.md
+  .mcp.json          <span class='cmt'># Twilio docs MCP</span>
+  .env.example
+  run.sh
+  <span class='dir'>src/</span>
+    app.${ext}
+    twilio_client.${ext}
+    <span class='dir'>routes/</span>
+${routes}</div>
+        <div class='res-sec'>Run it</div>
+        <div class='run'>cd generated/${slug} &amp;&amp; ./run.sh   # ${step1.lang==="Python"?"uv sync · ngrok · uvicorn":"npm i · ngrok · tsx"}</div>
+      </div>
+      <div class='modal-ft'><button class='btn' onclick='closeModal()'>Close</button><button class='btn primary' onclick='closeModal()'>Open folder</button></div>`);
+  }
+
+  // ---- LLM credential fields ----
+  const LLM_CREDS = {
+    "Anthropic — Claude":[{key:"ANTHROPIC_API_KEY",label:"API key",ph:"sk-ant-…",type:"password",full:true},{key:"ANTHROPIC_MODEL",label:"Model",ph:"claude-opus-4-8",type:"text"},{key:"ANTHROPIC_BASE_URL",label:"Base URL (optional)",ph:"https://api.anthropic.com",type:"text"}],
+    "OpenAI — GPT":[{key:"OPENAI_API_KEY",label:"API key",ph:"sk-…",type:"password",full:true},{key:"OPENAI_MODEL",label:"Model",ph:"gpt-4o",type:"text"},{key:"OPENAI_ORG_ID",label:"Org ID (optional)",ph:"org-…",type:"text"}],
+    "Google — Gemini":[{key:"GOOGLE_API_KEY",label:"API key",ph:"AIza…",type:"password",full:true},{key:"GEMINI_MODEL",label:"Model",ph:"gemini-1.5-pro",type:"text"},{key:"GOOGLE_PROJECT_ID",label:"Project ID (Vertex only)",ph:"my-gcp-project",type:"text"}],
+    "Azure OpenAI":[{key:"AZURE_OPENAI_API_KEY",label:"API key",ph:"…",type:"password"},{key:"AZURE_OPENAI_ENDPOINT",label:"Endpoint",ph:"https://res.openai.azure.com",type:"text"},{key:"AZURE_OPENAI_DEPLOYMENT",label:"Deployment",ph:"gpt-4o-deploy",type:"text"},{key:"AZURE_OPENAI_API_VERSION",label:"API version",ph:"2024-08-01-preview",type:"text"}],
+    "AWS Bedrock":[{key:"AWS_ACCESS_KEY_ID",label:"Access key ID",ph:"AKIA…",type:"text"},{key:"AWS_SECRET_ACCESS_KEY",label:"Secret access key",ph:"…",type:"password"},{key:"AWS_REGION",label:"Region",ph:"us-east-1",type:"text"},{key:"BEDROCK_MODEL_ID",label:"Model ID",ph:"anthropic.claude-3-5-sonnet-…",type:"text"}],
+  };
+  function renderLlmCreds(){
+    const provider = document.getElementById("llm").value;
+    const wrap = document.getElementById("llm-creds");
+    wrap.innerHTML = (LLM_CREDS[provider]||[]).map(f=>`<div class="${f.full?"full":""}"><span class="mini-lbl">${f.label}</span><input type="${f.type}" placeholder="${f.ph}" autocomplete="off" spellcheck="false"></div>`).join("");
+  }
+
+  function sync(){ /* project name only feeds the result view now */ }
+
+  // ---- boot ----
+  renderLlmCreds();
+  renderModules();
+  renderPanel();
+</script>
+</body>
+</html>

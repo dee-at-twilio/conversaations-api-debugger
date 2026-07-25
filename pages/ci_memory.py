@@ -48,7 +48,7 @@ def render():
         return
 
     tab_op, tab_rule, tab_traits, tab_recall = st.tabs(
-        ["Custom operator", "Attach to config", "Memory traits", "Observations & Recall"],
+        ["Custom operator", "Attach to config", "Memory traits", "Recall"],
     )
 
     with tab_op:
@@ -61,7 +61,7 @@ def render():
         _tab_memory_traits()
 
     with tab_recall:
-        _tab_observations_recall()
+        _tab_recall()
 
 
 # ---------------------------------------------------------------------------
@@ -411,19 +411,6 @@ def _tab_memory_traits():
             )
             if len(profiles) > 1:
                 st.info(f"{len(profiles)} profiles matched; showing the first. All: {profiles}")
-
-            # Same-click Recall: pull observations + summaries for the found profile
-            with st.spinner("Fetching memories..."):
-                recall_resp = requests.post(
-                    f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{found_id}/Recall",
-                    auth=_auth(),
-                    headers=_headers(),
-                    json={},
-                )
-            if recall_resp.status_code >= 300:
-                _show_error("Recall failed", recall_resp)
-            else:
-                st.session_state["current_recall"] = recall_resp.json()
     else:
         manual_id = st.text_input("Profile ID", key="traits_manual_id")
         if manual_id and manual_id != st.session_state.get("traits_profile_id"):
@@ -467,25 +454,7 @@ def _tab_memory_traits():
     else:
         st.json(grouped)
 
-    recall = st.session_state.get("current_recall")
-    if recall:
-        observations = recall.get("observations", [])
-        summaries = recall.get("summaries", [])
-        st.markdown(f"**Observations ({len(observations)})**")
-        if not observations:
-            st.caption("(none)")
-        else:
-            for o in observations:
-                occurred = o.get("occurredAt", "")
-                st.write(f"- {o.get('content')}  \n  _{occurred} · {o.get('source', '')}_")
-        st.markdown(f"**Summaries ({len(summaries)})**")
-        if not summaries:
-            st.caption("(none)")
-        else:
-            for s in summaries:
-                st.write(f"- {s.get('content')}  \n  _conv: {s.get('conversationId', '')}_")
-        with st.expander("Raw recall response"):
-            st.json(recall)
+    st.caption("Run Recall on this profile from the *Recall* tab.")
 
     st.divider()
     st.markdown("**Update traits**")
@@ -570,11 +539,15 @@ def _list_stores():
 
 
 # ---------------------------------------------------------------------------
-# Tab 4: Observations & Recall
+# Tab 4: Recall
 # ---------------------------------------------------------------------------
 
-def _tab_observations_recall():
-    st.subheader("Observations & Recall")
+def _tab_recall():
+    st.subheader("Recall memories")
+    st.caption(
+        "Runs `POST /v1/Stores/{storeId}/Profiles/{profileId}/Recall` — returns observations "
+        "and summaries for the profile. Leave query and conversation ID blank for most-recent order."
+    )
 
     stores = _list_stores()
     if stores is None:
@@ -584,53 +557,33 @@ def _tab_observations_recall():
         return
 
     store_labels = {f"{s.get('displayName') or s.get('id')} — {s.get('id')}": s.get("id") for s in stores}
-    picked = st.selectbox("Memory Store", options=list(store_labels.keys()), key="obs_store")
+    picked = st.selectbox("Memory Store", options=list(store_labels.keys()), key="recall_store")
     store_id = store_labels[picked]
 
     profile_id = st.text_input(
         "Profile ID",
         value=st.session_state.get("traits_profile_id", ""),
-        key="obs_profile_id",
+        key="recall_profile_id",
+        help="Populated automatically after a lookup on the Memory traits tab.",
     )
 
     if not profile_id:
-        st.info("Enter a Profile ID to post observations or run recall.")
+        st.info("Enter a Profile ID (or look one up on the Memory traits tab).")
         return
 
-    st.markdown("### Post observation")
-    obs_content = st.text_area("Content", key="obs_content", placeholder="Customer prefers SMS updates for order status.")
-    obs_source = st.text_input("Source", value="manual", key="obs_source")
-    obs_conv_id = st.text_input("Conversation ID (optional)", key="obs_conv_id")
-
-    if st.button("Post observation", type="primary", key="btn_post_obs"):
-        if not obs_content:
-            st.error("Content is required.")
-            st.stop()
-        observation = {"content": obs_content, "source": obs_source or "manual"}
-        if obs_conv_id:
-            observation["conversationIds"] = [obs_conv_id]
-        with st.spinner("Posting..."):
-            resp = requests.post(
-                f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{profile_id}/Observations",
-                auth=_auth(),
-                headers=_headers(),
-                json={"observations": [observation]},
-            )
-        if resp.status_code >= 300:
-            _show_error("Failed to post observation", resp)
-        else:
-            st.success("Observation posted.")
-            with st.expander("Response"):
-                st.json(resp.json())
-
-    st.divider()
-    st.markdown("### Recall")
-    recall_query = st.text_input("Query (optional)", key="recall_query", placeholder="What has the customer complained about?")
+    recall_query = st.text_input(
+        "Query (optional)",
+        key="recall_query",
+        placeholder="What has the customer complained about?",
+    )
     recall_conv = st.text_input("Conversation ID (optional)", key="recall_conv")
-    obs_limit = st.slider("Observations limit", min_value=1, max_value=20, value=10, key="recall_obs_limit")
-    summ_limit = st.slider("Summaries limit", min_value=0, max_value=10, value=3, key="recall_summ_limit")
+    col1, col2 = st.columns(2)
+    with col1:
+        obs_limit = st.slider("Observations limit", min_value=1, max_value=20, value=10, key="recall_obs_limit")
+    with col2:
+        summ_limit = st.slider("Summaries limit", min_value=0, max_value=10, value=5, key="recall_summ_limit")
 
-    if st.button("Run Recall", key="btn_recall"):
+    if st.button("Run Recall", type="primary", key="btn_recall"):
         body = {"observationsLimit": obs_limit, "summariesLimit": summ_limit}
         if recall_query:
             body["query"] = recall_query
@@ -645,15 +598,63 @@ def _tab_observations_recall():
             )
         if resp.status_code >= 300:
             _show_error("Recall failed", resp)
-        else:
-            data = resp.json()
-            observations = data.get("observations", [])
-            summaries = data.get("summaries", [])
-            st.markdown(f"**Observations ({len(observations)})**")
-            for o in observations:
-                st.write(f"- {o.get('content')}")
-            st.markdown(f"**Summaries ({len(summaries)})**")
-            for s in summaries:
-                st.write(f"- {s.get('content')}")
-            with st.expander("Raw response"):
-                st.json(data)
+            st.stop()
+        st.session_state["recall_result"] = resp.json()
+
+    data = st.session_state.get("recall_result")
+    if not data:
+        return
+
+    observations = data.get("observations", [])
+    summaries = data.get("summaries", [])
+
+    st.markdown(f"### Observations ({len(observations)})")
+    if not observations:
+        st.caption("(none)")
+    for o in observations:
+        _render_memory_card(
+            content=o.get("content", ""),
+            memory_id=o.get("id", ""),
+            conversation_ids=o.get("conversationIds") or [],
+            source=o.get("source", ""),
+            score=o.get("score"),
+            occurred_at=o.get("occurredAt", ""),
+        )
+
+    st.markdown(f"### Summaries ({len(summaries)})")
+    if not summaries:
+        st.caption("(none)")
+    for s in summaries:
+        conv_id = s.get("conversationId", "")
+        _render_memory_card(
+            content=s.get("content", ""),
+            memory_id=s.get("id", ""),
+            conversation_ids=[conv_id] if conv_id else [],
+            source=s.get("source", ""),
+            score=s.get("score"),
+            occurred_at=s.get("occurredAt", ""),
+        )
+
+    with st.expander("Raw response"):
+        st.json(data)
+
+
+def _render_memory_card(
+    content: str,
+    memory_id: str,
+    conversation_ids: list[str],
+    source: str,
+    score,
+    occurred_at: str,
+) -> None:
+    """Render one observation/summary with the identifying IDs the user asked for."""
+    with st.container(border=True):
+        st.write(content)
+        conv_display = ", ".join(f"`{c}`" for c in conversation_ids) if conversation_ids else "—"
+        score_display = f"{score:.3f}" if isinstance(score, (int, float)) else "—"
+        st.caption(
+            f"**Memory ID:** `{memory_id}`  \n"
+            f"**Conversation ID:** {conv_display}  \n"
+            f"**Intelligence source:** `{source or '—'}`  \n"
+            f"**Occurred at:** {occurred_at or '—'} · **Score:** {score_display}"
+        )
