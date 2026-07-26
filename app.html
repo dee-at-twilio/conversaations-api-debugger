@@ -134,14 +134,25 @@
   .btn-gen { margin-left:auto; font-family:var(--font-mono); font-size:13px; letter-spacing:.04em; background:var(--red); color:#fff; border:0; border-radius:var(--r-sm); padding:13px 26px; cursor:pointer; font-weight:600; transition:filter .15s,transform .05s; }
   .btn-gen:hover { filter:brightness(1.08); } .btn-gen:active { transform:translateY(1px); }
 
+  /* Step 04 — demo UI sub-options + theme picker */
+  .subopts { margin-top:16px; padding-top:16px; border-top:1px solid var(--line); }
+  .subopts[hidden] { display:none; }
+  .theme-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  @media (max-width:620px){ .theme-grid { grid-template-columns:repeat(2,1fr); } }
+  .theme { cursor:pointer; border:1px solid var(--line); border-radius:var(--r-md); overflow:hidden; background:var(--tile); transition:border-color .15s,box-shadow .15s; }
+  .theme:hover { border-color:var(--line-2); }
+  .theme.on { border-color:var(--red); box-shadow:0 0 0 3px rgba(242,47,70,.14); }
+  .theme .thumb { height:74px; display:flex; flex-direction:column; }
+  .theme .th-name { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.03em; padding:8px 10px; color:var(--ink-2); display:flex; align-items:center; gap:7px; border-top:1px solid var(--line); }
+  .theme .th-radio { width:12px; height:12px; border-radius:50%; border:2px solid var(--ink-4); flex:none; position:relative; }
+  .theme.on .th-radio { border-color:var(--red); }
+  .theme.on .th-radio::after { content:""; position:absolute; inset:2px; border-radius:50%; background:var(--red); }
+  .theme-add { grid-column:1 / -1; font-family:var(--font-mono); font-size:11px; letter-spacing:.05em; color:var(--ink-4); border:1px dashed var(--line-2); background:transparent; border-radius:var(--r-md); padding:10px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .theme-add:hover { color:var(--ink-2); border-color:var(--ink-4); }
+
   /* ---------- Code focus panel (right) ---------- */
   .code-panel { position:static; align-self:stretch; display:flex; flex-direction:column; flex:1; min-height:0; }
   .code-panel > .card-bd { flex:1; min-height:0; display:flex; flex-direction:column; }
-  .cp-hd { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); }
-  .cp-hd .cp-title { font-size:15px; font-weight:700; }
-  .cp-hd .cp-sub { font-size:11px; color:var(--ink-4); font-family:var(--font-mono); }
-  .cp-state { margin-left:auto; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; padding:3px 9px; border-radius:999px; border:1px solid var(--line-2); color:var(--ink-4); }
-  .cp-state.edited { color:var(--amber); border-color:rgba(245,181,68,.4); background:rgba(245,181,68,.1); }
 
   .cp-empty { padding:60px 24px; text-align:center; color:var(--ink-4); }
   .cp-empty svg { opacity:.5; margin-bottom:12px; }
@@ -298,6 +309,132 @@
   .p-btn:hover { border-color:var(--ink-3); color:var(--ink); }
   .p-btn.primary { color:var(--red); border-color:rgba(242,47,70,.4); }
   .p-btn.primary:hover { background:var(--red-dim); }
+
+  /* ---------- Demo UI preview ---------- */
+  .dp-overlay { position:fixed; inset:0; background:rgba(4,7,13,.72); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:24px; z-index:60; }
+  .dp-overlay.show { display:flex; }
+  .dp-shell {
+    width:min(1200px, 96vw); height:min(820px, 92vh);
+    display:grid; grid-template-columns: 260px 1fr; grid-template-rows: auto 1fr 220px;
+    grid-template-areas: "hd hd" "left right" "bottom bottom";
+    border-radius:calc(var(--dp-r, 10px) * 1.4); overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.55);
+    background:var(--dp-bg, #0a0e17); color:var(--dp-text, #edeef2);
+    border:1px solid var(--dp-border, rgba(255,255,255,.08));
+    font-family:var(--dp-font, ui-sans-serif, system-ui, sans-serif);
+  }
+  .dp-shell.density-airy   { --dp-pad-y: 16px; --dp-pad-x: 20px; --dp-gap: 16px; --dp-bub-pad: 12px 15px; }
+  .dp-shell.density-regular{ --dp-pad-y: 12px; --dp-pad-x: 18px; --dp-gap: 14px; --dp-bub-pad: 10px 13px; }
+  .dp-shell.density-tight  { --dp-pad-y: 8px;  --dp-pad-x: 14px; --dp-gap: 10px; --dp-bub-pad: 7px 10px; }
+
+  .dp-hd {
+    grid-area:hd; display:flex; align-items:center; gap:12px; padding:var(--dp-pad-y) var(--dp-pad-x);
+    background:var(--dp-header, var(--dp-panel)); border-bottom:1px solid var(--dp-divider, rgba(255,255,255,.06));
+  }
+  .dp-hd .dp-brand { display:flex; align-items:center; gap:10px; }
+  .dp-hd .dp-dot { width:10px; height:10px; border-radius:50%; background:var(--dp-accent, #f22f46); box-shadow:0 0 12px var(--dp-accent, #f22f46); }
+  .dp-hd .dp-title { font-weight:700; font-size:14px; letter-spacing:-.005em; }
+  .dp-hd .dp-sub { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dp-muted); }
+  .dp-hd .spacer { flex:1; }
+  .dp-hd .dp-theme-pill { font-family:var(--font-mono); font-size:10.5px; letter-spacing:.06em; padding:5px 10px; border-radius:999px; border:1px solid var(--dp-border); color:var(--dp-muted); }
+  .dp-close { background:transparent; border:1px solid var(--dp-border); color:inherit; width:32px; height:32px; border-radius:calc(var(--dp-r) * .8); cursor:pointer; font-size:16px; line-height:1; }
+  .dp-close:hover { background:var(--dp-panel2); }
+
+  .dp-left {
+    grid-area:left; padding:var(--dp-pad-y) 14px; background:var(--dp-panel); border-right:1px solid var(--dp-divider);
+    display:flex; flex-direction:column; gap:8px; overflow-y:auto;
+  }
+  .dp-left .dp-section { font-family:var(--font-mono); font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--dp-muted); margin:6px 4px 4px; }
+  .dp-action {
+    display:flex; align-items:center; gap:10px; padding:11px 12px; border-radius:var(--dp-r); cursor:pointer;
+    background:var(--dp-panel2); border:1px solid var(--dp-border); color:inherit;
+    font-size:12.5px; text-align:left; transition:background .15s, border-color .15s, transform .05s;
+    font-family:inherit;
+  }
+  .dp-action:hover { border-color:var(--dp-accent); transform:translateX(2px); }
+  .dp-action .dp-ic { width:30px; height:30px; border-radius:calc(var(--dp-r) * .7); display:grid; place-items:center; background:var(--dp-accent); color:var(--dp-accent-ink,#fff); flex:none; font-size:14px; }
+  .dp-action.ghost .dp-ic { background:var(--dp-accent2, var(--dp-panel2)); }
+  .dp-action .dp-lbl { display:flex; flex-direction:column; }
+  .dp-action .dp-hint { font-size:10.5px; color:var(--dp-muted); font-family:var(--font-mono); letter-spacing:.03em; margin-top:1px; }
+
+  .dp-right { grid-area:right; display:flex; flex-direction:column; min-height:0; background:var(--dp-bg); }
+  .dp-conv-hd { display:flex; align-items:center; gap:10px; padding:var(--dp-pad-y) var(--dp-pad-x); border-bottom:1px solid var(--dp-divider); }
+  .dp-conv-hd .dp-title { font-size:13px; font-weight:600; }
+  .dp-conv-hd .dp-status { margin-left:auto; font-family:var(--font-mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--dp-accent); }
+  .dp-conv { flex:1; padding:var(--dp-pad-x) var(--dp-pad-x); overflow-y:auto; display:flex; flex-direction:column; gap:var(--dp-gap); }
+  .dp-msg { display:flex; flex-direction:column; gap:4px; max-width:70%; }
+  .dp-msg.user { align-self:flex-end; align-items:flex-end; }
+  .dp-msg.agent { align-self:flex-start; align-items:flex-start; }
+  .dp-meta { display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--dp-muted); }
+  .dp-chan { padding:2px 7px; border-radius:999px; border:1px solid currentColor; background:transparent; }
+  .dp-chan.voice    { color:var(--dp-voice); }
+  .dp-chan.sms      { color:var(--dp-sms); }
+  .dp-chan.whatsapp { color:var(--dp-whatsapp); }
+  .dp-chan.email    { color:var(--dp-email); }
+  .dp-bub {
+    padding:var(--dp-bub-pad); border-radius:var(--dp-r); font-size:13px; line-height:1.5;
+    background:var(--dp-bubble); border:1px solid var(--dp-border);
+  }
+  .dp-msg.user .dp-bub {
+    background:var(--dp-user-bubble); color:var(--dp-user-ink,#fff);
+    border-color:transparent; border-bottom-right-radius:calc(var(--dp-r) * .3);
+  }
+  .dp-msg.agent .dp-bub { border-bottom-left-radius:calc(var(--dp-r) * .3); }
+  .dp-msg.voice .dp-bub::before {
+    content:"▶ voice message"; display:block; font-family:var(--font-mono); font-size:9.5px;
+    letter-spacing:.1em; text-transform:uppercase; opacity:.6; margin-bottom:5px;
+  }
+  .dp-composer { display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--dp-divider); background:var(--dp-panel); }
+  .dp-composer input {
+    flex:1; background:var(--dp-panel2); border:1px solid var(--dp-border); color:inherit;
+    padding:9px 12px; border-radius:calc(var(--dp-r) * .8); font-size:12.5px; outline:none;
+    font-family:inherit;
+  }
+  .dp-composer input:focus { border-color:var(--dp-accent); }
+  .dp-composer button {
+    background:var(--dp-accent); color:var(--dp-accent-ink,#fff); border:0; border-radius:calc(var(--dp-r) * .8);
+    padding:9px 18px; font-family:var(--font-mono); font-size:11.5px; letter-spacing:.05em; cursor:pointer;
+    font-weight:600;
+  }
+
+  .dp-bottom {
+    grid-area:bottom; padding:var(--dp-pad-y) var(--dp-pad-x); background:var(--dp-panel);
+    border-top:1px solid var(--dp-divider); overflow:hidden;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .dp-bottom .dp-b-hd { display:flex; align-items:center; gap:12px; }
+  .dp-bottom .dp-b-hd .dp-title { font-size:13px; font-weight:600; }
+  .dp-bottom .dp-b-hd .dp-sub { font-family:var(--font-mono); font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--dp-muted); }
+  .dp-profile { display:grid; grid-template-columns: 220px 1fr 1fr 1fr; gap:12px; flex:1; min-height:0; }
+  .dp-card {
+    background:var(--dp-panel2); border:1px solid var(--dp-border);
+    border-radius:var(--dp-r); padding:12px 13px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .dp-card .dp-k { font-family:var(--font-mono); font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--dp-muted); }
+  .dp-avatar { display:flex; align-items:center; gap:11px; }
+  .dp-avatar .dp-a-img {
+    width:46px; height:46px; border-radius:var(--dp-avatar-r,50%);
+    background:var(--dp-accent); color:var(--dp-accent-ink,#fff);
+    display:grid; place-items:center; font-weight:700; font-size:16px;
+  }
+  .dp-avatar .dp-a-name { font-size:14px; font-weight:600; }
+  .dp-avatar .dp-a-sub { font-family:var(--font-mono); font-size:10.5px; color:var(--dp-muted); margin-top:2px; }
+  .dp-tags { display:flex; flex-wrap:wrap; gap:5px; }
+  .dp-tag {
+    font-family:var(--font-mono); font-size:10px; letter-spacing:.04em; padding:3px 8px;
+    border-radius:999px; background:var(--dp-tag-bg, var(--dp-panel2)); border:1px solid var(--dp-border);
+    color:var(--dp-text);
+  }
+  .dp-obs { font-size:12px; line-height:1.5; padding:6px 0; border-bottom:1px dashed var(--dp-divider); color:var(--dp-text); }
+  .dp-obs:last-child { border-bottom:0; }
+  .dp-obs .dp-obs-when { font-family:var(--font-mono); font-size:9.5px; color:var(--dp-muted); letter-spacing:.06em; margin-left:6px; }
+
+  @media (max-width:900px){
+    .dp-shell { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr 240px; grid-template-areas: "hd" "left" "right" "bottom"; height:96vh; }
+    .dp-left { flex-direction:row; overflow-x:auto; }
+    .dp-profile { grid-template-columns: 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -378,9 +515,28 @@
     </div>
 
     <div class="card">
+      <div class="card-hd"><div class="eyebrow">Step 04 · Demo UI</div><h2>Live demo interface</h2><p>Optional. Off = a lean backend-only module the customer copies in. On = a React UI that shows the selected features live over WebSocket.</p></div>
+      <div class="card-bd">
+        <div class="toggle" id="tg-demoui"><span class="switch"></span> Include live demo UI</div>
+        <div class="subopts" id="demoui-opts" hidden>
+          <div class="field">
+            <label class="lbl">Realtime panels</label>
+            <div class="toggle" id="tg-observability"><span class="switch"></span> Add observability panel</div>
+            <div class="hint">Events on every important method + basic filtering, rendered as a panel inside the demo UI.</div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="lbl">Theme · frontend/themes/*</label>
+            <div class="theme-grid" id="theme-grid"></div>
+            <div class="hint">Palette swaps over one layout. Drop a theme folder into <span style="font-family:var(--font-mono);">frontend/themes/</span> and it appears here.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-bd">
         <div class="genbar">
-          <div class="toggle" id="tg-scaffold" onclick="toggleFlag(this)"><span class="switch"></span> Scaffold only · skip LLM fill</div>
+          <div class="toggle" id="tg-scaffold" onclick="toggleFlag(this)"><span class="switch"></span> Skip LLM fill logic</div>
           <div class="toggle" id="tg-provision" onclick="toggleFlag(this)"><span class="switch"></span> Provision Twilio resources <span style="color:var(--red);font-family:var(--font-mono);font-size:10px;">live account</span></div>
           <button class="btn-gen" onclick="generate()">Generate demo →</button>
         </div>
@@ -397,13 +553,55 @@
 <!-- ============ PROJECTS ============ -->
 <div id="projects">
   <div class="proj-hd"><h2>Projects</h2><span class="count">3 generated · newest first</span></div>
-  <div class="proj"><div><div class="p-name">acme-voice-support</div><div class="p-meta">2026-07-25 18:44 · python · sdk</div><div class="p-chips"><span class="p-chip">ConversationRelay</span><span class="p-chip">Conversation Intelligence</span><span class="p-chip">Channels: Voice+SMS</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
+  <div class="proj"><div><div class="p-name">acme-voice-support</div><div class="p-meta">2026-07-25 18:44 · python · sdk · demo-ui</div><div class="p-chips"><span class="p-chip">ConversationRelay</span><span class="p-chip">Conversation Intelligence</span><span class="p-chip">Channels: Voice+SMS</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
   <div class="proj"><div><div class="p-name">northwind-outbound-leads</div><div class="p-meta">2026-07-24 11:02 · typescript · rest</div><div class="p-chips"><span class="p-chip">ConversationRelay</span><span class="p-chip">Conversation Memory</span><span class="p-chip">Agent Connect: OpenAI</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
-  <div class="proj"><div><div class="p-name">globex-returning-caller</div><div class="p-meta">2026-07-22 09:30 · python · sdk</div><div class="p-chips"><span class="p-chip">Conversation Orchestrator</span><span class="p-chip">Conversation Memory</span><span class="p-chip">Channels: Voice+WhatsApp</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
+  <div class="proj"><div><div class="p-name">globex-returning-caller</div><div class="p-meta">2026-07-22 09:30 · python · sdk · demo-ui</div><div class="p-chips"><span class="p-chip">Conversation Orchestrator</span><span class="p-chip">Conversation Memory</span><span class="p-chip">Channels: Voice+WhatsApp</span></div></div><div class="p-actions"><button class="p-btn">Open folder</button><button class="p-btn">Regenerate</button><button class="p-btn primary">Clone</button><button class="p-btn">Archive</button></div></div>
 </div>
 
 <!-- generic modal -->
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<!-- demo UI preview -->
+<div class="dp-overlay" id="dp-overlay">
+  <div class="dp-shell" id="dp-shell">
+    <div class="dp-hd">
+      <div class="dp-brand">
+        <span class="dp-dot"></span>
+        <div>
+          <div class="dp-title">Live Demo Preview</div>
+          <div class="dp-sub" id="dp-sub">React + WebSocket · demo UI</div>
+        </div>
+      </div>
+      <span class="spacer"></span>
+      <span class="dp-theme-pill" id="dp-theme-pill">Theme · flex-dark</span>
+      <button class="dp-close" id="dp-close" aria-label="Close preview">✕</button>
+    </div>
+
+    <div class="dp-left" id="dp-left">
+      <!-- injected -->
+    </div>
+
+    <div class="dp-right">
+      <div class="dp-conv-hd">
+        <div class="dp-title">Conversation</div>
+        <div class="dp-status">● Live</div>
+      </div>
+      <div class="dp-conv" id="dp-conv"><!-- injected --></div>
+      <div class="dp-composer">
+        <input type="text" placeholder="Reply as agent…" />
+        <button>Send</button>
+      </div>
+    </div>
+
+    <div class="dp-bottom">
+      <div class="dp-b-hd">
+        <div class="dp-title">Memory profile</div>
+        <div class="dp-sub">Conversation Memory · resolved identity</div>
+      </div>
+      <div class="dp-profile" id="dp-profile"><!-- injected --></div>
+    </div>
+  </div>
+</div>
 
 <!-- ===== representative snippets (illustrative — real generation happens in the build) ===== -->
 <script type="text/plain" id="snip-channels-py-sdk">
@@ -877,6 +1075,63 @@ export async function startOutbound(to: string): Promise<string> {
     { id:"tac",      name:"Twilio Agent Connect", tag:"BYO LLM", note:"" },
   ];
 
+  // ---- demo-UI themes (each theme redefines a full token set, not just colours) ----
+  const THEMES = [
+    {
+      id:"flex-dark", name:"Flex Dark",
+      bg:"#0a0e17", panel:"#161c2b", panel2:"#1b2333", accent:"#f22f46", accent2:"#6b8cff",
+      text:"#edeef2", muted:"#8b93a5", border:"rgba(255,255,255,.08)", divider:"rgba(255,255,255,.06)",
+      bubble:"rgba(255,255,255,.05)", userBubble:"#f22f46", userBubbleText:"#ffffff",
+      radius:10, avatarRadius:"50%", headerBg:"#161c2b", tagBg:"rgba(255,255,255,.06)",
+      voice:"#f5b544", sms:"#6b8cff", whatsapp:"#38d178", email:"#c586c0",
+      font:'ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif',
+      density:"regular"
+    },
+    {
+      id:"midnight", name:"Midnight Glass",
+      bg:"#0b1020", panel:"linear-gradient(180deg,#1a2244 0%,#141b33 100%)", panel2:"rgba(107,140,255,.08)",
+      accent:"#6b8cff", accent2:"#a679ff",
+      text:"#e9ecf5", muted:"#9aa3c7", border:"rgba(107,140,255,.18)", divider:"rgba(107,140,255,.14)",
+      bubble:"rgba(107,140,255,.12)", userBubble:"linear-gradient(135deg,#6b8cff,#a679ff)", userBubbleText:"#ffffff",
+      radius:18, avatarRadius:"50%", headerBg:"linear-gradient(180deg,rgba(166,121,255,.18),rgba(107,140,255,.06))",
+      tagBg:"rgba(107,140,255,.14)",
+      voice:"#ffd166", sms:"#6b8cff", whatsapp:"#38d178", email:"#a679ff",
+      font:'"Inter", ui-sans-serif, system-ui, sans-serif',
+      density:"airy"
+    },
+    {
+      id:"slate", name:"Warm Slate",
+      bg:"#141a1e", panel:"#1c2128", panel2:"#252a33", accent:"#e0b341", accent2:"#c8825b",
+      text:"#e8eaed", muted:"#a3a8b3", border:"rgba(224,179,65,.16)", divider:"rgba(255,255,255,.05)",
+      bubble:"#252a33", userBubble:"#e0b341", userBubbleText:"#141a1e",
+      radius:6, avatarRadius:"9px", headerBg:"#1c2128", tagBg:"rgba(224,179,65,.1)",
+      voice:"#e0b341", sms:"#7fb3e0", whatsapp:"#7fc78a", email:"#c8825b",
+      font:'ui-serif, Georgia, "Iowan Old Style", serif',
+      density:"regular"
+    },
+    {
+      id:"light", name:"Paper Light",
+      bg:"#f4f5f8", panel:"#ffffff", panel2:"#f7f8fb", accent:"#f22f46", accent2:"#1a1f2b",
+      text:"#1a1f2b", muted:"#5c6579", border:"rgba(20,25,40,.09)", divider:"rgba(20,25,40,.07)",
+      bubble:"#eef0f5", userBubble:"#f22f46", userBubbleText:"#ffffff",
+      radius:14, avatarRadius:"12px", headerBg:"#ffffff", tagBg:"#eef0f5",
+      voice:"#c78a1d", sms:"#3d5fd9", whatsapp:"#1f9c52", email:"#8b3ca3",
+      font:'ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif',
+      density:"regular"
+    },
+    {
+      id:"contrast", name:"Terminal",
+      bg:"#000000", panel:"#0a0a0a", panel2:"#141414", accent:"#00e0a4", accent2:"#ffe600",
+      text:"#f5f5f5", muted:"#7a7a7a", border:"#00e0a4", divider:"rgba(0,224,164,.18)",
+      bubble:"#0a0a0a", userBubble:"#00e0a4", userBubbleText:"#000000",
+      radius:0, avatarRadius:"0", headerBg:"#000000", tagBg:"transparent",
+      voice:"#ffe600", sms:"#00e0a4", whatsapp:"#00e0a4", email:"#ffe600",
+      font:'"JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace',
+      density:"tight"
+    },
+  ];
+  const demo = { ui:false, observability:false, theme:"flex-dark" };
+
   // ---- keys ----
   const langKey = () => step1.lang === "Python" ? "py" : "ts";
   const accessKey = () => step1.access === "Helper SDK" ? "sdk" : "rest";
@@ -936,6 +1191,211 @@ export async function startOutbound(to: string): Promise<string> {
     fg.appendChild(el);
   });
 
+  // ---- theme picker ----
+  function renderThemes(){
+    const grid = document.getElementById("theme-grid");
+    grid.innerHTML = THEMES.map(t=>{
+      const r = Math.min(t.radius, 10) + "px";
+      const tileR = Math.min(t.radius * 0.6, 6) + "px";
+      const bubbleR = Math.min(t.radius, 8) + "px";
+      return `
+      <button class="theme ${demo.theme===t.id?"on":""}" data-id="${t.id}">
+        <div class="thumb" style="background:${t.bg};height:88px;">
+          <div style="height:16px;background:${t.panel};display:flex;align-items:center;gap:4px;padding:0 7px;border-bottom:1px solid ${t.divider};">
+            <span style="width:7px;height:7px;border-radius:50%;background:${t.accent};box-shadow:0 0 6px ${t.accent};"></span>
+            <span style="width:24px;height:3px;border-radius:2px;background:${t.text};opacity:.55;"></span>
+            <span style="flex:1"></span>
+            <span style="width:10px;height:3px;border-radius:2px;background:${t.accent2};opacity:.7;"></span>
+          </div>
+          <div style="flex:1;display:flex;gap:5px;padding:6px;">
+            <div style="width:34px;background:${t.panel};border-radius:${tileR};padding:5px;display:flex;flex-direction:column;gap:3px;border:1px solid ${t.border};">
+              <span style="height:4px;background:${t.accent};border-radius:${tileR};"></span>
+              <span style="height:4px;background:${t.text};opacity:.28;border-radius:${tileR};"></span>
+              <span style="height:4px;background:${t.text};opacity:.28;border-radius:${tileR};"></span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:4px;padding:2px 0;">
+              <span style="align-self:flex-start;max-width:70%;background:${t.bubble};border:1px solid ${t.border};padding:3px 6px;border-radius:${bubbleR};border-bottom-left-radius:2px;">
+                <span style="display:block;width:32px;height:3px;background:${t.text};opacity:.5;border-radius:2px;"></span>
+              </span>
+              <span style="align-self:flex-end;max-width:60%;background:${t.userBubble.includes('gradient')?t.userBubble:t.userBubble};padding:3px 6px;border-radius:${bubbleR};border-bottom-right-radius:2px;">
+                <span style="display:block;width:24px;height:3px;background:${t.userBubbleText};opacity:.85;border-radius:2px;"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="th-name" style="font-family:${t.font.includes('mono')?'var(--font-mono)':t.font.includes('serif')?'ui-serif,Georgia,serif':'inherit'};"><span class="th-radio"></span>${t.name}</div>
+      </button>`;
+    }).join("") +
+      `<button class="theme-add" onclick="alert('Mock: drop a theme folder into frontend/themes/ to add a palette.')">+ Add theme (drop a folder into frontend/themes/)</button>`;
+    grid.querySelectorAll(".theme").forEach(b=>b.onclick=()=>{
+      demo.theme=b.dataset.id; renderThemes();
+      if(demo.ui) openDemoPreview();
+    });
+  }
+  renderThemes();
+
+  // ---- demo UI toggles ----
+  const demoBtn = document.getElementById("tg-demoui");
+  demoBtn.onclick = ()=>{
+    demo.ui = !demo.ui; demoBtn.classList.toggle("on", demo.ui);
+    document.getElementById("demoui-opts").hidden = !demo.ui;
+    if(demo.ui) openDemoPreview();
+  };
+  const obsBtn = document.getElementById("tg-observability");
+  obsBtn.onclick = ()=>{
+    demo.observability = !demo.observability; obsBtn.classList.toggle("on", demo.observability);
+    if(demo.ui) openDemoPreview();
+  };
+
+  // ---- demo UI preview (three-section mock) ----
+  const DP_CONVERSATION = [
+    { who:"agent", chan:"voice",    text:"Hi Priya, thanks for calling Acme Support. I can see you called about your order — how can I help today?" },
+    { who:"user",  chan:"voice",    text:"My order 4837 was supposed to arrive yesterday. Can you check on it?" },
+    { who:"agent", chan:"voice",    text:"Of course. I see it's held at the local depot — I'll text you a live tracking link right now." },
+    { who:"agent", chan:"sms",      text:"Track your order 4837: acme.co/t/9F2A · reply STOP to unsubscribe." },
+    { who:"user",  chan:"sms",      text:"Got it. Any way to redirect to my office address?" },
+    { who:"agent", chan:"whatsapp", text:"I've moved us to WhatsApp so we can share pictures if needed. I can redirect — please confirm: 210 King St, level 4?" },
+    { who:"user",  chan:"whatsapp", text:"Yes, that's the one 🙏" },
+    { who:"agent", chan:"email",    text:"Confirmation sent — new ETA is tomorrow between 10am and 12pm. Reference case #CS-8821." },
+  ];
+
+  const DP_ACTIONS_ALL = [
+    { id:"call",  ic:"📞", title:"Make outbound call",   hint:"voice · ConversationRelay", needs:["relay","channels"] },
+    { id:"sms",   ic:"💬", title:"Send SMS",              hint:"channels · messaging",       needs:["channels"] },
+    { id:"wa",    ic:"🟢", title:"Send WhatsApp",         hint:"channels · WA sender",       needs:["channels"] },
+    { id:"email", ic:"✉️", title:"Send Email",            hint:"channels · notification",    needs:["channels"] },
+    { id:"relay", ic:"🎙", title:"Start voice AI relay",  hint:"ConversationRelay",          needs:["relay"] },
+    { id:"analyze", ic:"📊", title:"Analyze last call",   hint:"Conversation Intelligence",  needs:["cintel"] },
+    { id:"recall",  ic:"🧠", title:"Recall caller memory",hint:"Conversation Memory",        needs:["memory"] },
+    { id:"escalate",ic:"👤", title:"Escalate to human",   hint:"TaskRouter handoff",         needs:[] },
+  ];
+
+  function dpApplyTheme(){
+    const t = THEMES.find(x=>x.id===demo.theme) || THEMES[0];
+    const shell = document.getElementById("dp-shell");
+    const s = shell.style;
+    s.setProperty("--dp-bg", t.bg);
+    s.setProperty("--dp-panel", t.panel);
+    s.setProperty("--dp-panel2", t.panel2);
+    s.setProperty("--dp-accent", t.accent);
+    s.setProperty("--dp-accent2", t.accent2);
+    s.setProperty("--dp-text", t.text);
+    s.setProperty("--dp-muted", t.muted);
+    s.setProperty("--dp-border", t.border);
+    s.setProperty("--dp-divider", t.divider);
+    s.setProperty("--dp-header", t.headerBg);
+    s.setProperty("--dp-bubble", t.bubble);
+    s.setProperty("--dp-user-bubble", t.userBubble);
+    s.setProperty("--dp-user-ink", t.userBubbleText);
+    s.setProperty("--dp-accent-ink", t.userBubbleText);
+    s.setProperty("--dp-r", t.radius + "px");
+    s.setProperty("--dp-avatar-r", t.avatarRadius);
+    s.setProperty("--dp-tag-bg", t.tagBg);
+    s.setProperty("--dp-font", t.font);
+    s.setProperty("--dp-voice", t.voice);
+    s.setProperty("--dp-sms", t.sms);
+    s.setProperty("--dp-whatsapp", t.whatsapp);
+    s.setProperty("--dp-email", t.email);
+    shell.classList.remove("density-airy","density-regular","density-tight");
+    shell.classList.add("density-" + (t.density || "regular"));
+    s.setProperty("color-scheme", t.id === "light" ? "light" : "dark");
+    document.getElementById("dp-theme-pill").textContent = "Theme · " + t.name;
+  }
+
+  function dpRenderActions(){
+    const left = document.getElementById("dp-left");
+    const included = new Set(COMPONENTS.filter(c=>state[c.id].included).map(c=>c.id));
+    const feats = Array.from(document.querySelectorAll("#feat-grid .check.on span.c-title")).map(n=>n.textContent);
+    const enabled = DP_ACTIONS_ALL.filter(a => a.needs.length===0 || a.needs.some(n=>included.has(n)));
+    const acts = (enabled.length ? enabled : DP_ACTIONS_ALL.slice(0,4));
+    let html = `<div class="dp-section">Actions</div>`;
+    html += acts.map(a=>`
+      <button class="dp-action">
+        <span class="dp-ic">${a.ic}</span>
+        <span class="dp-lbl"><span>${a.title}</span><span class="dp-hint">${a.hint}</span></span>
+      </button>`).join("");
+    if(demo.observability){
+      html += `<div class="dp-section" style="margin-top:12px;">Observability</div>
+        <button class="dp-action ghost"><span class="dp-ic">📡</span><span class="dp-lbl"><span>Event stream</span><span class="dp-hint">every method · filtered</span></span></button>
+        <button class="dp-action ghost"><span class="dp-ic">🕒</span><span class="dp-lbl"><span>Latency panel</span><span class="dp-hint">ASR · LLM · TTS</span></span></button>`;
+    }
+    if(feats.length){
+      html += `<div class="dp-section" style="margin-top:12px;">Scenario</div>`;
+      html += feats.slice(0,3).map(f=>`<div class="dp-tag" style="display:block;margin:4px 0;">${f}</div>`).join("");
+    }
+    left.innerHTML = html;
+  }
+
+  function dpRenderConv(){
+    const conv = document.getElementById("dp-conv");
+    conv.innerHTML = DP_CONVERSATION.map(m=>{
+      const chanLabel = { voice:"Voice", sms:"SMS", whatsapp:"WhatsApp", email:"Email" }[m.chan];
+      const who = m.who==="user" ? "Customer" : "AI Agent";
+      return `
+        <div class="dp-msg ${m.who} ${m.chan}">
+          <div class="dp-meta">
+            <span>${who}</span>
+            <span class="dp-chan ${m.chan}">${chanLabel}</span>
+          </div>
+          <div class="dp-bub">${m.text}</div>
+        </div>`;
+    }).join("");
+    conv.scrollTop = conv.scrollHeight;
+  }
+
+  function dpRenderProfile(){
+    const p = document.getElementById("dp-profile");
+    p.innerHTML = `
+      <div class="dp-card">
+        <div class="dp-avatar">
+          <div class="dp-a-img">PR</div>
+          <div>
+            <div class="dp-a-name">Priya Ramesh</div>
+            <div class="dp-a-sub">+1 415 555 0198</div>
+          </div>
+        </div>
+        <div class="dp-k" style="margin-top:8px;">Identity</div>
+        <div style="font-size:12px;opacity:.85;">Resolved via phone match · profile_id p_9F2A</div>
+      </div>
+      <div class="dp-card">
+        <div class="dp-k">Traits</div>
+        <div class="dp-tags">
+          <span class="dp-tag">tier: gold</span>
+          <span class="dp-tag">lifetime: $4,820</span>
+          <span class="dp-tag">tz: America/Los_Angeles</span>
+          <span class="dp-tag">pref channel: WhatsApp</span>
+          <span class="dp-tag">language: en-US</span>
+        </div>
+      </div>
+      <div class="dp-card">
+        <div class="dp-k">Recent observations</div>
+        <div class="dp-obs">Prefers text over voice for delivery updates <span class="dp-obs-when">2d ago</span></div>
+        <div class="dp-obs">Complained about depot delays twice this month <span class="dp-obs-when">5d ago</span></div>
+        <div class="dp-obs">Positive sentiment after refund on order 4712 <span class="dp-obs-when">11d ago</span></div>
+      </div>
+      <div class="dp-card">
+        <div class="dp-k">Open items</div>
+        <div class="dp-obs">Case CS-8821 · redirect order 4837 to office</div>
+        <div class="dp-obs">Follow-up: confirm delivery tomorrow 10–12</div>
+        <div class="dp-obs">Owner: AI agent · escalate if unresolved &gt; 24h</div>
+      </div>`;
+  }
+
+  function openDemoPreview(){
+    dpApplyTheme();
+    dpRenderActions();
+    dpRenderConv();
+    dpRenderProfile();
+    document.getElementById("dp-sub").textContent =
+      "React + WebSocket · " + (step1.lang === "Python" ? "FastAPI backend" : "Express backend") +
+      (demo.observability ? " · observability on" : "");
+    document.getElementById("dp-overlay").classList.add("show");
+  }
+  function closeDemoPreview(){ document.getElementById("dp-overlay").classList.remove("show"); }
+  document.getElementById("dp-close").onclick = closeDemoPreview;
+  document.getElementById("dp-overlay").addEventListener("click", e=>{ if(e.target.id==="dp-overlay") closeDemoPreview(); });
+  document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeDemoPreview(); });
+
   // ---- component list ----
   function renderModules(){
     const wrap = document.getElementById("modules");
@@ -959,7 +1419,6 @@ export async function startOutbound(to: string): Promise<string> {
           <span class='m-right'>${badges}</span>
         </div>
         ${c.note ? `<div class='m-note'>${c.note}</div>`:""}`;
-      // checkbox toggles include; rest of row focuses
       m.querySelector(".box").onclick = (e)=>{ e.stopPropagation(); st.included=!st.included; renderModules(); };
       m.onclick = ()=>{ focused = c.id; renderModules(); renderPanel(); };
       wrap.appendChild(m);
@@ -972,19 +1431,10 @@ export async function startOutbound(to: string): Promise<string> {
     if(!focused){ panel.innerHTML = `<div class='cp-empty'>Select a component to view and edit its code.</div>`; return; }
     const c = COMPONENTS.find(x=>x.id===focused);
     const st = state[focused];
-    const def = snippet(c.id, langKey(), accessKey());
-    const edited = st.saved !== def;
     const badgeLabel = (step1.lang==="Python"?"PY":"TS");
     panel.innerHTML = `
-      <div class='cp-hd'>
-        <div>
-          <div class='cp-title'>${c.name}</div>
-          <div class='cp-sub'>${c.id}.${step1.lang==="Python"?"py":"ts"} · ${step1.access==="Helper SDK"?"sdk":"rest"}</div>
-        </div>
-        <div class='cp-state ${edited?"edited":""}'>${edited?"edited":"default"}</div>
-      </div>
       <div class='card-bd'>
-      
+
         <div id='ref-region'></div>
 
         <div class='code-block editable' style='margin-top:10px;'>
@@ -1009,11 +1459,9 @@ export async function startOutbound(to: string): Promise<string> {
         </div>
       </div>`;
 
-    // reference is always visible
     ref.shown = true;
     renderRef();
 
-    // editor
     const ta = document.getElementById("code-ta");
     const hl = document.getElementById("hl-layer");
     ta.value = st.draft;
@@ -1069,20 +1517,6 @@ export async function startOutbound(to: string): Promise<string> {
     };
   }
 
-  function useReference(){
-    const st = state[focused];
-    const code = snippet(focused, refLangKey(), refAccessKey());
-    const mismatch = ref.lang !== step1.lang;
-    const doCopy = ()=>{ st.draft = code; st.mismatch = mismatch; renderModules(); renderPanel(); };
-    if(mismatch){
-      openModal(`
-        <div class='modal-hd bad'><h3>Language mismatch</h3><div class='m-sub'>This app builds in <b>${step1.lang}</b>, but the reference you're viewing is <b>${ref.lang}</b>.</div></div>
-        <div class='modal-bd'><p style='margin:0;color:var(--ink-2);font-size:13px;'>Copying it down will put ${ref.lang} code into a file that generates a ${step1.lang} app. The version will be flagged until you fix it or change Step-01 language.</p></div>
-        <div class='modal-ft'><button class='btn' onclick='closeModal()'>Cancel</button><button class='btn primary' id='mm-ok'>Copy it down anyway</button></div>`);
-      document.getElementById("mm-ok").onclick = ()=>{ closeModal(); doCopy(); };
-    } else { doCopy(); }
-  }
-
   function refreshEditor(){
     const st = state[focused];
     const ta = document.getElementById("code-ta");
@@ -1096,7 +1530,6 @@ export async function startOutbound(to: string): Promise<string> {
     if(inner) inner.style.transform = `translateY(${-ta.scrollTop}px)`;
     if(p.ok){ editor.classList.remove("err"); bar.className="parse-bar ok"; bar.innerHTML = `<span class='parse-dot'></span> Syntax OK · parses as ${step1.lang}`; }
     else { editor.classList.add("err"); bar.className="parse-bar bad"; bar.innerHTML = `<span class='parse-dot'></span> Line ${p.line}: ${p.msg}`; }
-    // save gating
     const btnSave = document.getElementById("btn-save");
     const btnRevert = document.getElementById("btn-revert");
     const unsaved = st.draft !== st.saved;
@@ -1105,8 +1538,7 @@ export async function startOutbound(to: string): Promise<string> {
     btnRevert.disabled = !unsaved;
   }
 
-  function syncBadges(){ renderModulesBadgesOnly(); }
-  function renderModulesBadgesOnly(){ renderModules(); } // simple: re-render list to refresh badges
+  function syncBadges(){ renderModules(); }
 
   function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
@@ -1117,7 +1549,6 @@ export async function startOutbound(to: string): Promise<string> {
       b.onclick = ()=>{
         if(step1[key]===b.dataset.v) return;
         const prev = step1[key];
-        // any edits present?
         const editedComps = COMPONENTS.filter(c=>{
           const def = snippet(c.id, langKey(), accessKey());
           return state[c.id].saved !== def || state[c.id].draft !== state[c.id].saved;
@@ -1125,7 +1556,6 @@ export async function startOutbound(to: string): Promise<string> {
         const commit = ()=>{
           seg.querySelectorAll("button").forEach(x=>x.classList.remove("on"));
           b.classList.add("on"); step1[key]=b.dataset.v;
-          // reset all working copies to new defaults
           COMPONENTS.forEach(c=>{ const def = snippet(c.id, langKey(), accessKey()); state[c.id].saved=def; state[c.id].draft=def; state[c.id].mismatch=false; });
           renderModules(); renderPanel();
         };
@@ -1216,16 +1646,44 @@ export async function startOutbound(to: string): Promise<string> {
     const slug = (document.getElementById("pname").value||"demo").replace(/[^a-z0-9-]/gi,"-").toLowerCase();
     const ext = step1.lang==="Python"?"py":"ts";
     const feats = document.querySelectorAll("#feat-grid .check.on").length;
-    const files = 8 + included.length;
+    let files = 8 + included.length;
+    if(demo.ui) files += 6;
+    if(demo.ui && demo.observability) files += 3;
+
     const routes = included.map(c=>`      <span class='new'>${c.id}.${ext}</span>${" ".repeat(Math.max(1,14-c.id.length))}<span class='cmt'># ${c.name}</span>`).join("\n") || "      <span class='cmt'># no components selected</span>";
+
     const rows = [
       ["project", slug], ["language", step1.lang.toLowerCase()],
       ["access", step1.access==="Helper SDK"?"sdk":"rest"],
       ["agent_llm", document.getElementById("llm").value.split("—")[0].trim().toLowerCase()],
       ["components", included.length+" wired"], ["features", feats+" selected"],
-      ["llm_fill", document.getElementById("tg-scaffold").classList.contains("on")?"skipped":"enabled"],
-      ["provision", document.getElementById("tg-provision").classList.contains("on")?"on (live)":"off"],
+      ["demo_ui", demo.ui?"react + websocket":"off"],
     ];
+    if(demo.ui){
+      rows.push(["observability", demo.observability?"on":"off"]);
+      rows.push(["theme", demo.theme]);
+    }
+    rows.push(["llm_fill", document.getElementById("tg-scaffold").classList.contains("on")?"skipped":"enabled"]);
+    rows.push(["provision", document.getElementById("tg-provision").classList.contains("on")?"on (live)":"off"]);
+
+    // backend tree
+    let backendObs = (demo.ui && demo.observability)
+      ? `\n    <span class='dir'>observability/</span>\n      <span class='new'>events.${ext}</span>${" ".repeat(6)}<span class='cmt'># event store + emit()</span>` : "";
+    let wsLine = demo.ui ? `\n    <span class='new'>ws_hub.${ext}</span>${" ".repeat(6)}<span class='cmt'># WebSocket fan-out</span>` : "";
+
+    // frontend tree
+    let frontend = demo.ui ? `
+  <span class='dir'>frontend/</span>          <span class='cmt'># React demo UI (own package)</span>
+    <span class='dir'>src/</span>
+      <span class='dir'>panels/</span>      <span class='cmt'># feature-driven${demo.observability?" + observability":""}</span>
+      <span class='dir'>hooks/</span>       <span class='cmt'># useWebSocket, ...</span>
+      <span class='dir'>styles/</span>
+    <span class='dir'>themes/</span>        <span class='cmt'># selected: ${demo.theme}</span>` : "";
+
+    const runCmd = demo.ui
+      ? `cd generated/${slug} && ./run.sh   # ${step1.lang==="Python"?"uv sync":"npm i"} · ngrok · backend + frontend`
+      : `cd generated/${slug} && ./run.sh   # ${step1.lang==="Python"?"uv sync · ngrok · uvicorn":"npm i · ngrok · tsx"}`;
+
     openModal(`
       <div class='modal-hd'><h3>Demo generated · ${slug}</h3><div class='m-sub'>Saved code written verbatim — what you edited is what's on disk.</div></div>
       <div class='modal-bd'>
@@ -1233,7 +1691,7 @@ export async function startOutbound(to: string): Promise<string> {
           <div class='kpi'><div class='k-lbl'>Components</div><div class='k-val'>${included.length}</div></div>
           <div class='kpi'><div class='k-lbl'>Features</div><div class='k-val'>${feats}</div></div>
           <div class='kpi'><div class='k-lbl'>Files</div><div class='k-val'>${files}</div></div>
-          <div class='kpi'><div class='k-lbl'>Stack</div><div class='k-val sm'>${step1.lang==="Python"?"PY":"TS"} · ${step1.access==="Helper SDK"?"SDK":"REST"}</div></div>
+          <div class='kpi'><div class='k-lbl'>Stack</div><div class='k-val sm'>${step1.lang==="Python"?"PY":"TS"} · ${step1.access==="Helper SDK"?"SDK":"REST"}${demo.ui?" · UI":""}</div></div>
         </div>
         <div class='res-sec'>Manifest</div>
         <div class='manifest'><table>${rows.map(r=>`<tr><td class='k'>${r[0]}</td><td class='v'>${r[1]}</td></tr>`).join("")}</table></div>
@@ -1248,10 +1706,11 @@ export async function startOutbound(to: string): Promise<string> {
   <span class='dir'>src/</span>
     app.${ext}
     twilio_client.${ext}
-    <span class='dir'>routes/</span>
-${routes}</div>
+    <span class='dir'>components/</span>   <span class='cmt'># reusable Twilio primitives</span>
+${routes}
+    <span class='dir'>features/</span>     <span class='cmt'># use-case compositions</span>${wsLine}${backendObs}${frontend}</div>
         <div class='res-sec'>Run it</div>
-        <div class='run'>cd generated/${slug} &amp;&amp; ./run.sh   # ${step1.lang==="Python"?"uv sync · ngrok · uvicorn":"npm i · ngrok · tsx"}</div>
+        <div class='run'>${runCmd}</div>
       </div>
       <div class='modal-ft'><button class='btn' onclick='closeModal()'>Close</button><button class='btn primary' onclick='closeModal()'>Open folder</button></div>`);
   }

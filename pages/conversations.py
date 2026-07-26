@@ -19,8 +19,8 @@ def render():
         st.warning("Enter your Twilio credentials in the sidebar to get started.")
         return
 
-    tab_list, tab_fetch, tab_update, tab_actions = st.tabs(
-        ["List Conversations", "Fetch Conversation", "Update Conversation", "List Conversation Actions"]
+    tab_list, tab_fetch, tab_update, tab_actions, tab_comms = st.tabs(
+        ["List Conversations", "Fetch Conversation", "Update Conversation", "List Conversation Actions", "List Communications"]
     )
 
     # ── Tab 1: List ──────────────────────────────────────────────────────────
@@ -212,4 +212,73 @@ def render():
                             label = c.get("friendly_name") or c.get("sid", "Unknown")
                             with st.expander(f"📄 {c.get('sid', '')} — {label}"):
                                 st.json(c)
+
+    # ── Tab 5: List Communications ─────────────────────────────────────────────
+    with tab_comms:
+        st.subheader("List Communications by Conversation")
+        comms_sid = st.text_input(
+            "Conversation SID",
+            placeholder="conv_conversation_xxxxxxxxxxxxxxxxxxxxxxx",
+            key="comms_sid",
+        )
+        col1, col2 = st.columns(2)
+        with col1:
+            channel_id = st.text_input("Channel ID (optional)", key="comms_channel_id")
+        with col2:
+            comms_page_size = st.number_input(
+                "Page size", min_value=1, max_value=1000, value=50, key="comms_page_size"
+            )
+
+        if st.button("Fetch Communications", type="primary", key="btn_comms_list"):
+            if not comms_sid:
+                st.error("Conversation SID is required.")
+            else:
+                url = f"{BASE_URL}/{comms_sid}/Communications"
+                params = {"pageSize": comms_page_size}
+                if channel_id:
+                    params["channelId"] = channel_id
+
+                record_request("GET", url, params=params, auth=_auth())
+                with st.spinner("Fetching communications..."):
+                    try:
+                        resp = requests.get(url, auth=_auth(), params=params, timeout=10)
+                    except requests.RequestException as e:
+                        st.error(f"Request failed: {e}")
+                        resp = None
+
+                if resp is not None:
+                    if resp.status_code != 200:
+                        st.error(f"Error {resp.status_code}: {resp.text}")
+                    else:
+                        data = resp.json()
+                        communications = data.get("communications", [])
+                        if not communications:
+                            st.info("No communications found.")
+                        else:
+                            st.success(f"Found {len(communications)} communication(s)")
+                            for comm in communications:
+                                author = comm.get("author") or {}
+                                content = comm.get("content") or {}
+                                recipients = comm.get("recipients") or []
+                                col1, col2, col3, col4 = st.columns([3, 2, 2, 2])
+                                col1.caption("ID"); col1.write(comm.get("id", "—"))
+                                col2.caption("Channel"); col2.write(author.get("channel", "—"))
+                                col3.caption("From"); col3.write(author.get("address", "—"))
+                                col4.caption("Occurred"); col4.write((comm.get("occurredAt") or "—")[:19])
+
+                                if content.get("type") == "TEXT" and content.get("text"):
+                                    st.markdown(f"> {content['text']}")
+                                else:
+                                    st.markdown(f"*{content.get('type', '—')}*")
+
+                                if recipients:
+                                    to_str = ", ".join(
+                                        f"{r.get('address', '—')} ({r.get('deliveryStatus', '—')})"
+                                        for r in recipients
+                                    )
+                                    st.caption(f"To: {to_str}")
+
+                                with st.expander(f"Full response — {comm.get('id', '')}"):
+                                    st.json(comm)
+                                st.divider()
 
