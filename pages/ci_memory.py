@@ -6,6 +6,7 @@ import streamlit as st
 
 INTEL_BASE = "https://intelligence.twilio.com/v3"
 MEMORY_BASE = "https://memory.twilio.com/v1"
+CONVERSATIONS_BASE = "https://conversations.twilio.com/v2"
 
 
 def _auth():
@@ -47,8 +48,14 @@ def render():
         st.warning("Enter your Twilio credentials in the sidebar to get started.")
         return
 
-    tab_op, tab_rule, tab_traits, tab_recall = st.tabs(
-        ["Custom operator", "Attach to config", "Memory traits", "Recall"],
+    tab_op, tab_rule, tab_view, tab_update, tab_convs = st.tabs(
+        [
+            "Custom operator",
+            "Attach to config",
+            "View memory",
+            "Update memory",
+            "View profile conversations",
+        ],
     )
 
     with tab_op:
@@ -57,11 +64,14 @@ def render():
     with tab_rule:
         _tab_attach_to_config()
 
-    with tab_traits:
-        _tab_memory_traits()
+    with tab_view:
+        _tab_view_memory()
 
-    with tab_recall:
-        _tab_recall()
+    with tab_update:
+        _tab_update_memory()
+
+    with tab_convs:
+        _tab_view_profile_conversations()
 
 
 # ---------------------------------------------------------------------------
@@ -353,11 +363,11 @@ def _strip_rule_ids(rule: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Tab 3: Memory traits
+# Tab 3: View memory (current traits + Recall)
 # ---------------------------------------------------------------------------
 
-def _tab_memory_traits():
-    st.subheader("View & update profile traits")
+def _tab_view_memory():
+    st.subheader("View profile traits & recall memories")
 
     stores = _list_stores()
     if stores is None:
@@ -369,6 +379,7 @@ def _tab_memory_traits():
     store_labels = {f"{s.get('displayName') or s.get('id')} — {s.get('id')}": s.get("id") for s in stores}
     picked = st.selectbox("Memory Store", options=list(store_labels.keys()), key="traits_store")
     store_id = store_labels[picked]
+    st.session_state["traits_store_id"] = store_id
 
     lookup_mode = st.radio(
         "Find profile by",
@@ -399,12 +410,10 @@ def _tab_memory_traits():
                 )
                 st.stop()
 
-            # profiles is array<string> of profile IDs — take the first
             found_id = profiles[0]
             st.session_state["traits_profile_id"] = found_id
-            # Invalidate cached traits/recall from a prior profile
             st.session_state.pop("current_traits", None)
-            st.session_state.pop("current_recall", None)
+            st.session_state.pop("recall_result", None)
             st.success(
                 f"Found profile: {found_id} "
                 f"(normalized: {lookup_data.get('normalizedValue', '?')})"
@@ -416,16 +425,15 @@ def _tab_memory_traits():
         if manual_id and manual_id != st.session_state.get("traits_profile_id"):
             st.session_state["traits_profile_id"] = manual_id
             st.session_state.pop("current_traits", None)
-            st.session_state.pop("current_recall", None)
+            st.session_state.pop("recall_result", None)
 
     profile_id = st.session_state.get("traits_profile_id")
 
     if not profile_id:
-        st.stop()
+        return
 
     st.divider()
 
-    # Show current traits
     if st.button("Refresh current traits", key="btn_traits_refresh"):
         st.session_state.pop("current_traits", None)
 
@@ -454,9 +462,137 @@ def _tab_memory_traits():
     else:
         st.json(grouped)
 
-    st.caption("Run Recall on this profile from the *Recall* tab.")
-
     st.divider()
+    _recall_section(store_id, profile_id)
+
+
+def _recall_section(store_id: str, profile_id: str) -> None:
+    st.markdown("**Recall memories**")
+    st.caption(
+        "Runs `POST /v1/Stores/{storeId}/Profiles/{profileId}/Recall` — returns observations "
+        "and summaries for the profile. Leave query and conversation ID blank for most-recent order."
+    )
+
+    recall_query = st.text_input(
+        "Query (optional)",
+        key="recall_query",
+        placeholder="What has the customer complained about?",
+    )
+    recall_conv = st.text_input("Conversation ID (optional)", key="recall_conv")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        obs_limit = st.slider("Observations limit", min_value=1, max_value=20, value=10, key="recall_obs_limit")
+    with col2:
+        summ_limit = st.slider("Summaries limit", min_value=0, max_value=10, value=5, key="recall_summ_limit")
+    with col3:
+        comm_limit = st.slider("Communications limit", min_value=0, max_value=10, value=5, key="recall_comm_limit")
+
+    if st.button("Run Recall", type="primary", key="btn_recall"):
+        body = {"observationsLimit": obs_limit, "summariesLimit": summ_limit, "communicationsLimit": comm_limit}
+        if recall_query:
+            body["query"] = recall_query
+        if recall_conv:
+            body["conversationId"] = recall_conv
+        with st.spinner("Recalling..."):
+            resp = requests.post(
+                f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{profile_id}/Recall",
+                auth=_auth(),
+                headers=_headers(),
+                json=body,
+            )
+        if resp.status_code >= 300:
+            _show_error("Recall failed", resp)
+            st.stop()
+        st.session_state["recall_result"] = resp.json()
+
+    data = st.session_state.get("recall_result")
+    if not data:
+        return
+
+    observations = data.get("observations", [])
+    summaries = data.get("summaries", [])
+    communications = data.get("communications", [])
+
+    st.markdown(f"### Observations ({len(observations)})")
+    if not observations:
+        st.caption("(none)")
+    for o in observations:
+        _render_memory_card(
+            content=o.get("content", ""),
+            memory_id=o.get("id", ""),
+            conversation_ids=o.get("conversationIds") or [],
+            source=o.get("source", ""),
+            score=o.get("score"),
+            occurred_at=o.get("occurredAt", ""),
+        )
+
+    st.markdown(f"### Summaries ({len(summaries)})")
+    if not summaries:
+        st.caption("(none)")
+    for s in summaries:
+        conv_id = s.get("conversationId", "")
+        _render_memory_card(
+            content=s.get("content", ""),
+            memory_id=s.get("id", ""),
+            conversation_ids=[conv_id] if conv_id else [],
+            source=s.get("source", ""),
+            score=s.get("score"),
+            occurred_at=s.get("occurredAt", ""),
+        )
+
+    st.markdown(f"### Communications ({len(communications)})")
+    if not communications:
+        st.caption("(none)")
+    for c in communications:
+        _render_communication_card(c)
+
+    with st.expander("Raw response"):
+        st.json(data)
+
+
+def _list_stores():
+    resp = requests.get(
+        f"{MEMORY_BASE}/ControlPlane/Stores",
+        auth=_auth(),
+        headers=_headers(),
+        params={"pageSize": 50},
+    )
+    if resp.status_code >= 300:
+        _show_error("Failed to list memory stores", resp)
+        return None
+    stores = []
+    for s in resp.json().get("stores", []):
+        if isinstance(s, dict):
+            stores.append(s)
+            continue
+        detail = requests.get(
+            f"{MEMORY_BASE}/ControlPlane/Stores/{s}",
+            auth=_auth(),
+            headers=_headers(),
+        )
+        stores.append(detail.json() if detail.ok else {"id": s})
+    return stores
+
+
+# ---------------------------------------------------------------------------
+# Tab 4: Update memory (update traits)
+# ---------------------------------------------------------------------------
+
+def _tab_update_memory():
+    st.subheader("Update profile traits")
+
+    store_id = st.session_state.get("traits_store_id")
+    profile_id = st.session_state.get("traits_profile_id")
+
+    if not store_id or not profile_id:
+        st.info("Pick a Memory Store and look up a profile on the *View memory* tab first.")
+        return
+
+    st.caption(
+        f"Profile: `{profile_id}` in store `{store_id}`. "
+        "Change the target on the *View memory* tab."
+    )
+
     st.markdown("**Update traits**")
     st.caption(
         "Merge-only — traits you don't include stay unchanged. "
@@ -514,129 +650,179 @@ def _tab_memory_traits():
                 st.json(resp.json())
 
 
-def _list_stores():
-    resp = requests.get(
-        f"{MEMORY_BASE}/ControlPlane/Stores",
-        auth=_auth(),
-        headers=_headers(),
-        params={"pageSize": 50},
-    )
-    if resp.status_code >= 300:
-        _show_error("Failed to list memory stores", resp)
-        return None
-    stores = []
-    for s in resp.json().get("stores", []):
-        if isinstance(s, dict):
-            stores.append(s)
-            continue
-        detail = requests.get(
-            f"{MEMORY_BASE}/ControlPlane/Stores/{s}",
-            auth=_auth(),
-            headers=_headers(),
-        )
-        stores.append(detail.json() if detail.ok else {"id": s})
-    return stores
-
-
 # ---------------------------------------------------------------------------
-# Tab 4: Recall
+# Tab 5: View profile conversations
 # ---------------------------------------------------------------------------
 
-def _tab_recall():
-    st.subheader("Recall memories")
+def _tab_view_profile_conversations():
+    st.subheader("View all conversations for a profile")
     st.caption(
-        "Runs `POST /v1/Stores/{storeId}/Profiles/{profileId}/Recall` — returns observations "
-        "and summaries for the profile. Leave query and conversation ID blank for most-recent order."
+        "Uses Recall to discover conversation IDs on this profile, then lists each "
+        "conversation's communications via `GET /v2/Conversations/{id}/Communications` "
+        "and merges them sorted newest-first."
     )
 
     stores = _list_stores()
     if stores is None:
         return
     if not stores:
-        st.info("No memory stores found.")
+        st.info("No memory stores found. Create one via the Memory API first.")
         return
 
     store_labels = {f"{s.get('displayName') or s.get('id')} — {s.get('id')}": s.get("id") for s in stores}
-    picked = st.selectbox("Memory Store", options=list(store_labels.keys()), key="recall_store")
+    picked = st.selectbox("Memory Store", options=list(store_labels.keys()), key="conv_store")
     store_id = store_labels[picked]
 
-    profile_id = st.text_input(
-        "Profile ID",
-        value=st.session_state.get("traits_profile_id", ""),
-        key="recall_profile_id",
-        help="Populated automatically after a lookup on the Memory traits tab.",
+    lookup_mode = st.radio(
+        "Find profile by",
+        options=["Phone number", "Profile ID"],
+        horizontal=True,
+        key="conv_lookup_mode",
     )
 
+    if lookup_mode == "Phone number":
+        phone = st.text_input("Phone (E.164)", placeholder="+447876762080", key="conv_phone")
+        if st.button("Look up profile", key="btn_conv_lookup"):
+            with st.spinner("Looking up profile..."):
+                lookup_resp = requests.post(
+                    f"{MEMORY_BASE}/Stores/{store_id}/Profiles/Lookup",
+                    auth=_auth(),
+                    headers=_headers(),
+                    json={"idType": "phone", "value": phone},
+                )
+            if lookup_resp.status_code >= 300:
+                _show_error("Lookup failed", lookup_resp)
+                st.stop()
+
+            lookup_data = lookup_resp.json()
+            profiles = lookup_data.get("profiles", [])
+            if not profiles:
+                st.warning(f"No profile found for {lookup_data.get('normalizedValue', phone)}.")
+                st.stop()
+
+            found_id = profiles[0]
+            st.session_state["conv_profile_id"] = found_id
+            st.session_state.pop("conv_result", None)
+            st.success(
+                f"Found profile: {found_id} "
+                f"(normalized: {lookup_data.get('normalizedValue', '?')})"
+            )
+            if len(profiles) > 1:
+                st.info(f"{len(profiles)} profiles matched; showing the first. All: {profiles}")
+    else:
+        manual_id = st.text_input("Profile ID", key="conv_manual_id")
+        if manual_id and manual_id != st.session_state.get("conv_profile_id"):
+            st.session_state["conv_profile_id"] = manual_id
+            st.session_state.pop("conv_result", None)
+
+    profile_id = st.session_state.get("conv_profile_id")
     if not profile_id:
-        st.info("Enter a Profile ID (or look one up on the Memory traits tab).")
         return
 
-    recall_query = st.text_input(
-        "Query (optional)",
-        key="recall_query",
-        placeholder="What has the customer complained about?",
-    )
-    recall_conv = st.text_input("Conversation ID (optional)", key="recall_conv")
-    col1, col2 = st.columns(2)
-    with col1:
-        obs_limit = st.slider("Observations limit", min_value=1, max_value=20, value=10, key="recall_obs_limit")
-    with col2:
-        summ_limit = st.slider("Summaries limit", min_value=0, max_value=10, value=5, key="recall_summ_limit")
+    st.divider()
 
-    if st.button("Run Recall", type="primary", key="btn_recall"):
-        body = {"observationsLimit": obs_limit, "summariesLimit": summ_limit}
-        if recall_query:
-            body["query"] = recall_query
-        if recall_conv:
-            body["conversationId"] = recall_conv
-        with st.spinner("Recalling..."):
-            resp = requests.post(
+    st.caption(
+        "Recall's communications don't carry a `conversationId`, so we scan observations & summaries "
+        "to discover the conversations this profile has appeared in."
+    )
+    recall_limit = st.slider(
+        "Recall items to scan (observations)",
+        min_value=1,
+        max_value=100,
+        value=25,
+        key="conv_recall_limit",
+    )
+    per_conv_limit = st.slider(
+        "Max communications per conversation",
+        min_value=1,
+        max_value=100,
+        value=10,
+        key="conv_per_conv_limit",
+    )
+
+    if st.button("Load conversations", type="primary", key="btn_load_conv"):
+        with st.spinner("Recalling profile memory..."):
+            recall_resp = requests.post(
                 f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{profile_id}/Recall",
                 auth=_auth(),
                 headers=_headers(),
-                json=body,
+                json={
+                    "observationsLimit": recall_limit,
+                    # "summariesLimit": recall_limit,
+                    "communicationsLimit": 0,
+                },
             )
-        if resp.status_code >= 300:
-            _show_error("Recall failed", resp)
+        if recall_resp.status_code >= 300:
+            _show_error("Recall failed", recall_resp)
             st.stop()
-        st.session_state["recall_result"] = resp.json()
+        recall_data = recall_resp.json()
 
-    data = st.session_state.get("recall_result")
-    if not data:
+        conv_ids: set[str] = set()
+        for o in recall_data.get("observations", []):
+            for cid in (o.get("conversationIds") or []):
+                if cid:
+                    conv_ids.add(cid)
+        # for s in recall_data.get("summaries", []):
+        #     cid = s.get("conversationId")
+        #     if cid:
+        #         conv_ids.add(cid)
+
+        if not conv_ids:
+            st.warning("No conversation IDs found in recall results.")
+            st.session_state["conv_result"] = {"comms": [], "conv_ids": [], "errors": []}
+            st.stop()
+
+        all_comms: list[dict] = []
+        errors: list[tuple[str, int]] = []
+        with st.spinner(f"Fetching communications for {len(conv_ids)} conversation(s)..."):
+            for cid in conv_ids:
+                r = requests.get(
+                    f"{CONVERSATIONS_BASE}/Conversations/{cid}/Communications",
+                    auth=_auth(),
+                    headers=_headers(),
+                    params={"pageSize": per_conv_limit},
+                )
+                if r.status_code >= 300:
+                    errors.append((cid, r.status_code))
+                    continue
+                body = r.json()
+                items = body.get("communications") or body.get("items") or []
+                for item in items:
+                    item.setdefault("conversationId", cid)
+                    all_comms.append(item)
+
+        all_comms.sort(key=lambda c: c.get("createdAt") or "", reverse=True)
+
+        st.session_state["conv_result"] = {
+            "comms": all_comms,
+            "conv_ids": sorted(conv_ids),
+            "errors": errors,
+        }
+
+    result = st.session_state.get("conv_result")
+    if not result:
         return
 
-    observations = data.get("observations", [])
-    summaries = data.get("summaries", [])
+    conv_ids_loaded = result["conv_ids"]
+    all_comms = result["comms"]
+    errors = result["errors"]
 
-    st.markdown(f"### Observations ({len(observations)})")
-    if not observations:
-        st.caption("(none)")
-    for o in observations:
-        _render_memory_card(
-            content=o.get("content", ""),
-            memory_id=o.get("id", ""),
-            conversation_ids=o.get("conversationIds") or [],
-            source=o.get("source", ""),
-            score=o.get("score"),
-            occurred_at=o.get("occurredAt", ""),
-        )
+    st.markdown(
+        f"### {len(all_comms)} communication(s) across {len(conv_ids_loaded)} conversation(s)"
+    )
+    if conv_ids_loaded:
+        with st.expander("Conversations discovered"):
+            for cid in conv_ids_loaded:
+                st.write(f"`{cid}`")
+    for cid, status in errors:
+        st.warning(f"Conversation `{cid}` — failed to fetch (HTTP {status})")
 
-    st.markdown(f"### Summaries ({len(summaries)})")
-    if not summaries:
-        st.caption("(none)")
-    for s in summaries:
-        conv_id = s.get("conversationId", "")
-        _render_memory_card(
-            content=s.get("content", ""),
-            memory_id=s.get("id", ""),
-            conversation_ids=[conv_id] if conv_id else [],
-            source=s.get("source", ""),
-            score=s.get("score"),
-            occurred_at=s.get("occurredAt", ""),
-        )
+    if not all_comms:
+        st.caption("(no communications returned)")
+        return
 
-    with st.expander("Raw response"):
-        st.json(data)
+    for comm in all_comms:
+        _render_communication_card(comm)
 
 
 def _render_memory_card(
@@ -658,3 +844,39 @@ def _render_memory_card(
             f"**Intelligence source:** `{source or '—'}`  \n"
             f"**Occurred at:** {occurred_at or '—'} · **Score:** {score_display}"
         )
+
+
+def _participant_label(p: dict, include_delivery: bool = False) -> str:
+    if not isinstance(p, dict):
+        return "—"
+    name = p.get("name") or p.get("address") or p.get("id") or "—"
+    ptype = p.get("type")
+    label = f"{name} ({ptype})" if ptype else name
+    if include_delivery and p.get("deliveryStatus"):
+        label += f" · {p['deliveryStatus']}"
+    return label
+
+
+def _render_communication_card(comm: dict) -> None:
+    text = (comm.get("content") or {}).get("text", "")
+    author = comm.get("author") or {}
+    recipients = comm.get("recipients") or []
+    author_display = _participant_label(author)
+    recipients_display = (
+        ", ".join(_participant_label(r, include_delivery=True) for r in recipients)
+        if recipients else "—"
+    )
+    channel = author.get("channel") or "—"
+    conv_id = comm.get("conversationId")
+    with st.container(border=True):
+        st.write(text or "_(no text content)_")
+        lines = [
+            f"**Communication ID:** `{comm.get('id', '—')}`",
+            f"**Channel ID:** `{comm.get('channelId', '—')}` · **Channel:** `{channel}`",
+            f"**From:** {author_display}",
+            f"**To:** {recipients_display}",
+            f"**Created:** {comm.get('createdAt', '—')}",
+        ]
+        if conv_id:
+            lines.insert(1, f"**Conversation ID:** `{conv_id}`")
+        st.caption("  \n".join(lines))
