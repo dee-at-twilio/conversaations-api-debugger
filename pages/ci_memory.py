@@ -67,11 +67,11 @@ def render():
     with tab_view:
         _tab_view_memory()
 
-    with tab_update:
-        _tab_update_memory()
-
     with tab_convs:
         _tab_view_profile_conversations()
+
+    with tab_update:
+        _tab_update_memory()    
 
 
 # ---------------------------------------------------------------------------
@@ -481,7 +481,7 @@ def _recall_section(store_id: str, profile_id: str) -> None:
     recall_conv = st.text_input("Conversation ID (optional)", key="recall_conv")
     col1, col2, col3 = st.columns(3)
     with col1:
-        obs_limit = st.slider("Observations limit", min_value=1, max_value=20, value=10, key="recall_obs_limit")
+        obs_limit = st.slider("Observations limit", min_value=0, max_value=20, value=10, key="recall_obs_limit")
     with col2:
         summ_limit = st.slider("Summaries limit", min_value=0, max_value=10, value=5, key="recall_summ_limit")
     with col3:
@@ -573,85 +573,8 @@ def _list_stores():
         stores.append(detail.json() if detail.ok else {"id": s})
     return stores
 
-
 # ---------------------------------------------------------------------------
-# Tab 4: Update memory (update traits)
-# ---------------------------------------------------------------------------
-
-def _tab_update_memory():
-    st.subheader("Update profile traits")
-
-    store_id = st.session_state.get("traits_store_id")
-    profile_id = st.session_state.get("traits_profile_id")
-
-    if not store_id or not profile_id:
-        st.info("Pick a Memory Store and look up a profile on the *View memory* tab first.")
-        return
-
-    st.caption(
-        f"Profile: `{profile_id}` in store `{store_id}`. "
-        "Change the target on the *View memory* tab."
-    )
-
-    st.markdown("**Update traits**")
-    st.caption(
-        "Merge-only — traits you don't include stay unchanged. "
-        "PATCH `/v1/Stores/{storeId}/Profiles/{profileId}` with a `traits` object."
-    )
-
-    trait_group = st.text_input(
-        "Trait group",
-        value="Contact",
-        key="traits_group",
-        help="Common groups: Contact, Account, Support. Define your own for domain data.",
-    )
-
-    if "trait_rows" not in st.session_state:
-        st.session_state["trait_rows"] = [{"key": "", "value": ""}]
-
-    rows = st.session_state["trait_rows"]
-    updated_rows = []
-    for i, row in enumerate(rows):
-        c1, c2, c3 = st.columns([3, 5, 1])
-        with c1:
-            k = st.text_input("Field", value=row["key"], key=f"trait_key_{i}", label_visibility="collapsed", placeholder="firstName")
-        with c2:
-            v = st.text_input("Value", value=row["value"], key=f"trait_val_{i}", label_visibility="collapsed", placeholder="Alyssa")
-        with c3:
-            keep = not st.button("×", key=f"trait_del_{i}")
-        if keep:
-            updated_rows.append({"key": k, "value": v})
-    st.session_state["trait_rows"] = updated_rows
-
-    if st.button("+ Add field", key="btn_add_trait_row"):
-        st.session_state["trait_rows"].append({"key": "", "value": ""})
-        st.rerun()
-
-    if st.button("Update traits", type="primary", key="btn_traits_update"):
-        traits_payload = {r["key"]: r["value"] for r in updated_rows if r["key"]}
-        if not traits_payload:
-            st.error("Add at least one field with a key.")
-            st.stop()
-
-        body = {"traits": {trait_group: traits_payload}}
-        with st.spinner("Patching profile..."):
-            resp = requests.patch(
-                f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{profile_id}",
-                auth=_auth(),
-                headers=_headers(),
-                json=body,
-            )
-        if resp.status_code >= 300:
-            _show_error("Failed to update traits", resp)
-        else:
-            st.success("Traits updated.")
-            st.session_state.pop("current_traits", None)
-            with st.expander("Response"):
-                st.json(resp.json())
-
-
-# ---------------------------------------------------------------------------
-# Tab 5: View profile conversations
+# Tab 4: View profile conversations
 # ---------------------------------------------------------------------------
 
 def _tab_view_profile_conversations():
@@ -749,7 +672,6 @@ def _tab_view_profile_conversations():
                 json={
                     "observationsLimit": recall_limit,
                     # "summariesLimit": recall_limit,
-                    "communicationsLimit": 0,
                 },
             )
         if recall_resp.status_code >= 300:
@@ -880,3 +802,81 @@ def _render_communication_card(comm: dict) -> None:
         if conv_id:
             lines.insert(1, f"**Conversation ID:** `{conv_id}`")
         st.caption("  \n".join(lines))
+
+
+# ---------------------------------------------------------------------------
+# Tab 5: Update memory (update traits)
+# ---------------------------------------------------------------------------
+
+def _tab_update_memory():
+    st.subheader("Update profile traits")
+
+    store_id = st.session_state.get("traits_store_id")
+    profile_id = st.session_state.get("traits_profile_id")
+
+    if not store_id or not profile_id:
+        st.info("Pick a Memory Store and look up a profile on the *View memory* tab first.")
+        return
+
+    st.caption(
+        f"Profile: `{profile_id}` in store `{store_id}`. "
+        "Change the target on the *View memory* tab."
+    )
+
+    st.markdown("**Update traits**")
+    st.caption(
+        "Merge-only — traits you don't include stay unchanged. "
+        "PATCH `/v1/Stores/{storeId}/Profiles/{profileId}` with a `traits` object."
+    )
+
+    trait_group = st.text_input(
+        "Trait group",
+        value="Contact",
+        key="traits_group",
+        help="Common groups: Contact, Account, Support. Define your own for domain data.",
+    )
+
+    if "trait_rows" not in st.session_state:
+        st.session_state["trait_rows"] = [{"key": "", "value": ""}]
+
+    rows = st.session_state["trait_rows"]
+    updated_rows = []
+    for i, row in enumerate(rows):
+        c1, c2, c3 = st.columns([3, 5, 1])
+        with c1:
+            k = st.text_input("Field", value=row["key"], key=f"trait_key_{i}", label_visibility="collapsed", placeholder="firstName")
+        with c2:
+            v = st.text_input("Value", value=row["value"], key=f"trait_val_{i}", label_visibility="collapsed", placeholder="Alyssa")
+        with c3:
+            keep = not st.button("×", key=f"trait_del_{i}")
+        if keep:
+            updated_rows.append({"key": k, "value": v})
+    st.session_state["trait_rows"] = updated_rows
+
+    if st.button("+ Add field", key="btn_add_trait_row"):
+        st.session_state["trait_rows"].append({"key": "", "value": ""})
+        st.rerun()
+
+    if st.button("Update traits", type="primary", key="btn_traits_update"):
+        traits_payload = {r["key"]: r["value"] for r in updated_rows if r["key"]}
+        if not traits_payload:
+            st.error("Add at least one field with a key.")
+            st.stop()
+
+        body = {"traits": {trait_group: traits_payload}}
+        with st.spinner("Patching profile..."):
+            resp = requests.patch(
+                f"{MEMORY_BASE}/Stores/{store_id}/Profiles/{profile_id}",
+                auth=_auth(),
+                headers=_headers(),
+                json=body,
+            )
+        if resp.status_code >= 300:
+            _show_error("Failed to update traits", resp)
+        else:
+            st.success("Traits updated.")
+            st.session_state.pop("current_traits", None)
+            with st.expander("Response"):
+                st.json(resp.json())
+
+
