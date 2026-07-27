@@ -48,13 +48,13 @@ def render():
         st.warning("Enter your Twilio credentials in the sidebar to get started.")
         return
 
-    tab_op, tab_rule, tab_view, tab_update, tab_convs = st.tabs(
+    tab_op, tab_rule, tab_view, tab_convs, tab_update = st.tabs(
         [
             "Custom operator",
             "Attach to config",
             "View memory",
-            "Update memory",
             "View profile conversations",
+            "Update memory",
         ],
     )
 
